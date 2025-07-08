@@ -1,0 +1,57 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "STM32-Base",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
+            "cmakeExecutable": "${sourceDir}/tools/toolchain/cmake/bin/cmake.exe",
+            "environment": {
+                "PATH": "${sourceDir}/tools/toolchain/arm-gcc/bin"
+            },
+            "cacheVariables": {
+                "CMAKE_MAKE_PROGRAM": "${sourceDir}/tools/toolchain/mingw64/bin/make.exe",
+                "CMAKE_C_COMPILER": "arm-none-eabi-gcc.exe",
+                "CMAKE_CXX_COMPILER": "arm-none-eabi-g++.exe"
+            }
+        },
+        {
+            "name": "STM32-Debug",
+            "displayName": "Configuration-Debug",
+            "description": "Generates the build system by CMake",
+            "inherits": "STM32-Base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": true
+            }
+        },
+        {
+            "name": "STM32-Release",
+            "displayName": "Configuration-Release",
+            "description": "Generates the build system by CMake",
+            "inherits": "STM32-Base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": false
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "STM32-Build",
+            "configurePreset": "STM32-Debug",
+            "targets": [
+                "all"
+            ],
+            "jobs": 8,
+            "cleanFirst": false
+        },
+        {
+            "name": "STM32-Clean",
+            "configurePreset": "STM32-Debug",
+            "targets": [
+                "clean"
+            ]
+        }
+    ]
+}
