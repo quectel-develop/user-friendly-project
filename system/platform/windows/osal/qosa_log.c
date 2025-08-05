@@ -1,12 +1,12 @@
 /*****************************************************************/ /**
 * @file qosa_temer.c
-* @brief 
+* @brief
 * @author larson.li@quectel.com
 * @date 2024-12-23
-* 
-* @copyright Copyright (c) 2023 Quectel Wireless Solution, Co., Ltd. 
+*
+* @copyright Copyright (c) 2023 Quectel Wireless Solution, Co., Ltd.
 * All Rights Reserved. Quectel Wireless Solution Proprietary and Confidential.
-* 
+*
 * @par EDIT HISTORY FOR MODULE
 * <table>
 * <tr><th>Date <th>Version <th>Author <th>Description
@@ -47,31 +47,31 @@ static void get_current_time(char *buffer, size_t size)
 static uint8_t g_uart_input_buf[MAX_LENGTH];
 static uint32_t g_uart_input_buf_get_len = 0;
 
-static void* serial_input_parse_thread_proc(void* pThreadParam)
+static void* cli_input_parse_thread_proc(void* pThreadParam)
 {
 	int32_t ret;
 	uint16_t Size;
 
-	LOG_V("%s",__FUNCTION__);	
+	LOG_V("%s",__FUNCTION__);
 
 	while (1)
 	{
         // 从标准输入读取一行数据
         memset(g_uart_input_buf, 0, MAX_LENGTH);
-        if (fgets(g_uart_input_buf, MAX_LENGTH, stdin) != NULL) 
+        if (fgets(g_uart_input_buf, MAX_LENGTH, stdin) != NULL)
         {
             // 去除换行符
             size_t len = strlen(g_uart_input_buf);
-            if (len > 0 && g_uart_input_buf[len - 1] == '\n') 
+            if (len > 0 && g_uart_input_buf[len - 1] == '\n')
             {
                 g_uart_input_buf[len - 1] = '\0';
             }
             // 输出读取到的数据
             printf("input:%s, len = %d(0x%x, 0x%x, 0x%x)\r\n", g_uart_input_buf, len, g_uart_input_buf[0], g_uart_input_buf[1], g_uart_input_buf[2]);
-            debug_service_cmd_proc(g_uart_input_buf);
+            debug_service_cmd_exec(g_uart_input_buf);
         }
 	}
-	LOG_V("%s over",__FUNCTION__);	
+	LOG_V("%s over",__FUNCTION__);
 }
 
 // 初始化日志模块
@@ -91,7 +91,7 @@ void init_logger(LogLevel level, const char *file_path)
         }
     }
 
-	ret = qosa_task_create(&g_serial_input_thread_id, 512*12, QOSA_PRIORITY_NORMAL, "Debug_S", serial_input_parse_thread_proc, NULL);
+	ret = qosa_task_create(&g_serial_input_thread_id, 512*12, QOSA_PRIORITY_NORMAL, "Debug_S", cli_input_parse_thread_proc, NULL);
     if (ret != QOSA_OK)
 	{
 		LOG_E ("serial_input_pars thread could not start!");

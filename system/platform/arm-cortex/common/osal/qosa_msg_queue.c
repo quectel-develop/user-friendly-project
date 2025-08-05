@@ -179,7 +179,6 @@ int qosa_msgq_release(osa_msgq_t msgQRef, u32_t size, uint8_t *value, u32_t time
         return QOSA_ERROR_EVENT_FULL_ERR;
     }
 
-    qosa_mutex_lock(hndl->event_mutex, QOSA_WAIT_FOREVER);
 
     data_ptr = (struct osa_event_data *)malloc(sizeof(struct osa_event_data));
     if (data_ptr == NULL)
@@ -193,7 +192,7 @@ int qosa_msgq_release(osa_msgq_t msgQRef, u32_t size, uint8_t *value, u32_t time
         free(data_ptr);
         return QOSA_ERROR_NO_MEMORY;
     }
-
+    qosa_mutex_lock(hndl->event_mutex, QOSA_WAIT_FOREVER);
     memcpy(data_ptr->argv, value, size);
     qosa_link(data_ptr, &data_ptr->list);
     qosa_put(&hndl->type_list, &data_ptr->list);

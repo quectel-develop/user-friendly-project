@@ -1,6 +1,8 @@
 #ifndef __DEBUG_SERVICE_H__
 #define __DEBUG_SERVICE_H__
+#include <ctype.h>
 #include "QuectelConfig.h"
+#include "qosa_system.h"
 
 #define DBG_BUFF_LEN		    (1024)
 #define CMD_ARGC_NUM	     	(25)
@@ -15,18 +17,27 @@
 #endif /* USE_DEBUG_ASSERT */
 
 
-
-typedef struct 
+typedef struct
 {
-	char module_name[NAME_MAX_LEN];
-	int (*fp)(int argc, char *argv[]);
-}dbg_module, *dbg_module_t;
+	char name[NAME_MAX_LEN];
+	int (*func)(int argc, char *argv[]);
+    void (*help)(void);
+}Cli_Menu;
 
-int debug_service_cmd_proc(const char *cmd);
+int debug_service_cmd_exec(const char *cmd);
 
-int debug_service_create(void);
-int debug_service_destroy(void);
-void serial_input_parse_thread_wake_up();
+int debug_cli_func_reg(int32_t cnt, Cli_Menu* cli_menu[]);
+int debug_cli_service_create(void);
+int debug_cli_service_destroy(void);
+
+void inc_prompt_wait_count();
+
+void dec_prompt_wait_count();
+
+void log_shell_prompt(void);
+
+
+void serial_input_parse_thread_wake_up(void);
 
 #endif /* __DEBUG_SERVICE_H__ */
 

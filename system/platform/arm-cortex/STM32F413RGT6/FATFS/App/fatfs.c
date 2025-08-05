@@ -37,6 +37,13 @@ void MX_FATFS_Init(void)
   /* USER CODE END Init */
 }
 
+void MX_FATFS_DeInit(void)
+{
+    // 2. 解除底层驱动绑定
+    FATFS_UnLinkDriver(SDPath);
+    memset(&SDFatFS, 0, sizeof(FATFS));
+}
+
 /**
   * @brief  Gets Time from RTC
   * @param  None

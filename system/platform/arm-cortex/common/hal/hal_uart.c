@@ -303,11 +303,6 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
   }
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  //LOG_V("GPIO_Pin %d callback, level is %d", GPIO_Pin, HAL_GPIO_ReadPin(GPIOA, GPIO_Pin));
-}
-
 void qosa_uart_hardware_init(void)
 {
     //Idle interrupt huart2
@@ -337,8 +332,7 @@ int qosa_uart_read(int pos, const char *buffer, size_t size)
 
     if (ringbuffer_data_len(&g_uart_rxcb) > 0)
     {
-        ringbuffer_getstr(&g_uart_rxcb, (uint8_t* )buffer, size);
-        return size;
+        return ringbuffer_getstr(&g_uart_rxcb, (uint8_t* )buffer, size);
     }
     
     return 0;
@@ -353,9 +347,6 @@ void qosa_uart_register(event_callback_t event_cb)
 {
     QOSA_ASSERT(event_cb != QOSA_NULL);
     g_rx_ind_cfun = event_cb;
-    
-    return QOSA_OK;
-
 }
 
 s32_t rt_device_cb(void *buffer, s32_t size)

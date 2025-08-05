@@ -15,9 +15,6 @@
 #include "qosa_system.h"
 #include "hal_uart.h"
 #include "qosa_log.h"
-
-extern LogLevel g_debug_level;
-
 /**
  * dump hex format data to console device
  *
@@ -25,33 +22,59 @@ extern LogLevel g_debug_level;
  * @param buf hex buffer
  * @param size buffer size
  */
+extern LogLevel g_debug_level;
+
 void at_print_raw_cmd(const char *name, const char *buf, size_t size)
 {
 #define __is_print(ch)       ((unsigned int)((ch) - ' ') < 127u - ' ')
 #define WIDTH_SIZE           96
 
-    // if (g_debug_level > LOG_VERBOSE)
-    //     return;
-
     size_t i, j;
     int index = 0;
     char buffer[512] = {0};
 
+    // if (g_debug_level > LOG_VERBOSE)
+    //     return;
+
     for (i = 0; i < size; i += WIDTH_SIZE)
     {
-        index += sprintf(buffer, "                                                                        %s: ", name);
+        //index += sprintf(buffer, "[AT]                                                                             %s: ", name);
+        index += sprintf(buffer, "\t%s: ", name);
 
+        // //rt_kprintf("[D/AT] %s: %04X-%04X: ", name, i, i + WIDTH_SIZE);
+        // for (j = 0; j < WIDTH_SIZE; j++)
+        // {
+        //     if (i + j < size)
+        //     {
+        //         index = sprintf(buffer+index, "%02X ", buf[i + j]);
+        //         //rt_kprintf("%02X ", buf[i + j]);
+        //     }
+        //     else
+        //     {
+        //         //rt_kprintf("   ");
+        //         index = sprintf(buffer+index, "   ");
+        //     }
+        //     if ((j + 1) % 8 == 0)
+        //     {
+        //         //rt_kprintf(" ");
+        //         index = sprintf(buffer+index, "   ");
+        //     }
+        // }
+        // //rt_kprintf("  ");
+        // index = sprintf(buffer+index, "   ");
         for (j = 0; j < WIDTH_SIZE; j++)
         {
             if (i + j < size)
             {
-                index += sprintf(buffer + index, "%c", __is_print(buf[i + j]) ? buf[i + j] : '.');
+                //rt_kprintf("%c", __is_print(buf[i + j]) ? buf[i + j] : '.');
+                index += sprintf(buffer+index, "%c", __is_print(buf[i + j]) ? buf[i + j] : '.');
             }
         }
+        //rt_kprintf("\r\n");
+        // index += sprintf(buffer+index, "\r\n");
         LOG_D("%s", buffer);
     }
 }
-
 
 size_t at_utils_send(size_t pos, const void *buffer, size_t size)
 {
@@ -62,7 +85,9 @@ size_t at_vprintf(char *send_buf, size_t buf_size, const char *format, va_list a
 {
     size_t len = vsnprintf(send_buf, buf_size, format, args);
     if (len == 0)
+    {
         return 0;
+    }
 
 #ifdef AT_PRINT_RAW_CMD
     at_print_raw_cmd("sendline", send_buf, len);
@@ -75,7 +100,9 @@ size_t at_vprintfln(char *send_buf, size_t buf_size, const char *format, va_list
 {
     size_t len = vsnprintf(send_buf, buf_size - 2, format, args);
     if (len == 0)
+    {
         return 0;
+    }
 
     send_buf[len++] = '\r';
     send_buf[len++] = '\n';

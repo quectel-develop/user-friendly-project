@@ -22,7 +22,7 @@
  * 2019-05-08     chenyong     first version
  */
 #include "QuectelConfig.h"
-#ifdef __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_SOCKET__
+#ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET__
 #include <stdlib.h>
 #include <string.h>
 #include "qosa_log.h"
@@ -32,11 +32,11 @@
 #define DBG_TAG              "at.dev"
 #define DBG_LVL              DBG_INFO
 
-static struct at_device g_at_device = { 0 }; 
-static struct at_device_data g_at_device_data = { 0 }; 
+static struct at_device g_at_device = { 0 };
+static struct at_device_data g_at_device_data = { 0 };
 
 struct at_device *at_device_get(void)
-{ 
+{
     return &g_at_device;
 }
 
@@ -48,7 +48,7 @@ int at_device_socket_register(u32_t socket_num, struct at_socket_ops *socket_ops
     g_at_device.socket_ops = socket_ops;
     g_at_device.client     = client;
     g_at_device.user_data  = (void *)&g_at_device_data;
-    memcpy(&g_at_device.ip_addr, ip_addr, sizeof(ip_addr_t));
+    // memcpy(&g_at_device.ip_addr, ip_addr, sizeof(ip_addr_t));
 
     g_at_device.sockets = (struct at_socket *) calloc(socket_num, sizeof(struct at_socket));
     if (g_at_device.sockets == QOSA_NULL)
@@ -79,4 +79,4 @@ int at_device_socket_unregister(void)
     return QOSA_OK;
 }
 
-#endif /* __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_SOCKET__ */
+#endif /* __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET__ */

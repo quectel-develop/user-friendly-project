@@ -8,7 +8,7 @@
  * 2018-06-06     chenYong     first version
  */
 #include "QuectelConfig.h"
-#ifdef __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_SOCKET__
+#ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET__
 #ifndef __AT_SOCKET_H__
 #define __AT_SOCKET_H__
 
@@ -42,6 +42,7 @@ enum at_socket_state
     AT_SOCKET_OPEN,
     AT_SOCKET_LISTEN,
     AT_SOCKET_CONNECT,
+    AT_SOCKET_CLOSING,
     AT_SOCKET_CLOSED
 };
 
@@ -94,8 +95,8 @@ typedef union
   {
     u32_t port;
     u32_t sin_addr;
-  } addr;                                   
-  s64_t data;                            
+  } addr;
+  s64_t data;
 } at_socket_addr;
 
 struct at_incoming_info
@@ -187,8 +188,8 @@ struct at_socket *at_get_socket(int socket);
 #define getaddrinfo(nodename, servname, hints, res)         at_getaddrinfo(nodename, servname, hints, res)
 #define freeaddrinfo(ai)                                    at_freeaddrinfo(ai)
 
-#define listen(socket, backlog)                             at_listen(socket, backlog)  
-#define accept(socket, name, namelen)                       at_accept(socket, name, namelen)      
+#define listen(socket, backlog)                             at_listen(socket, backlog)
+#define accept(socket, name, namelen)                       at_accept(socket, name, namelen)
 
 #endif /* RT_USING_SAL */
 
@@ -197,4 +198,4 @@ struct at_socket *at_get_socket(int socket);
 #endif
 
 #endif /* AT_SOCKET_H__ */
-#endif /* __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_SOCKET__ */
+#endif /* __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET__ */

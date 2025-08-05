@@ -13,6 +13,7 @@
 #define __AT_H__
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -36,11 +37,6 @@ extern "C"
 #define AT_CMD_MAX_LEN                 128
 #endif
 
-/* the maximum number of supported AT clients */
-#ifndef AT_CLIENT_NUM_MAX
-#define AT_CLIENT_NUM_MAX              1
-#endif
-
 /* the server AT commands new line sign */
 #if defined(AT_CMD_END_MARK_CRLF)
 #define AT_CMD_END_MARK                "\r\n"
@@ -57,19 +53,18 @@ typedef enum
     AT_STATUS_CLI,
 } at_status_t;
 
+
 typedef enum
 {
-    AT_RESP_OK = 0,                   /* AT response end is OK */
-    AT_RESP_ERROR = -1,               /* AT response end is ERROR */
-    AT_RESP_TIMEOUT = -2,             /* AT response is timeout */
-    AT_RESP_BUFF_FULL= -3,            /* AT response buffer is full */
+    AT_RESP_OK = 0,         /* AT response end is OK */
+    AT_RESP_ERROR = -1,     /* AT response end is ERROR */
+    AT_RESP_TIMEOUT = -2,   /* AT response is timeout */
+    AT_RESP_BUFF_FULL = -3, /* AT response buffer is full */
 } at_resp_status_t;
 
-
-typedef void (*resp_func)(const char *, size_t );
+typedef void (*resp_func)(const char *, size_t, void *);
 struct at_response
 {
-    /* [quectel add] */
     resp_func self_func;
 
     /* response buffer */
@@ -86,16 +81,46 @@ struct at_response
     size_t line_counts;
     /* the maximum response time */
     int32_t timeout;
+    void *arg;
 };
 
 typedef struct at_response *at_response_t;
+
+struct at_client
+{
+    at_status_t status;
+    char        end_sign;
+    char       *send_buf;
+    /* The maximum supported send cmd length */
+    size_t send_bufsz;
+    /* The length of last cmd */
+    size_t last_cmd_len;
+    /* the current received one line data buffer */
+    char *recv_line_buf;
+    /* The length of the currently received one line data */
+    size_t recv_line_len;
+    /* The maximum supported receive data length */
+    size_t               recv_bufsz;
+    osa_sem_t            rx_notice;
+    osa_mutex_t          lock;
+    at_response_t        resp;
+    osa_sem_t            resp_notice;
+    at_resp_status_t     resp_status;
+    struct at_urc_table *urc_table;
+    size_t               urc_table_size;
+    const struct at_urc *urc;
+    osa_task_t           parser;
+    resp_func            self_func;
+    void *               arg;
+};
+typedef struct at_client *at_client_t;
 
 /* URC(Unsolicited Result Code) object, such as: 'RING', 'READY' request by AT server */
 struct at_urc
 {
     const char *cmd_prefix;
     const char *cmd_suffix;
-    void (*func)(struct at_client *client, const char *data, size_t size);
+    void (*func)(struct at_client *client, const char *data, size_t size, void *arg);
 };
 typedef struct at_urc *at_urc_t;
 
@@ -106,50 +131,10 @@ struct at_urc_table
 };
 typedef struct at_urc *at_urc_table_t;
 
-struct at_client
-{
-    /* [quectel mask] */
-    /* rt_device_t device; */
-
-    at_status_t status;
-    char end_sign;
-
-    /* [quectel add] */
-    char *send_buf;
-    /* [quectel add] The maximum supported send cmd length */
-    size_t send_bufsz;
-    /* [quectel add] The length of last cmd */
-    size_t last_cmd_len;
-
-    /* the current received one line data buffer */
-    char *recv_line_buf;
-    /* The length of the currently received one line data */
-    size_t recv_line_len;
-    /* The maximum supported receive data length */
-    size_t recv_bufsz;
-    osa_sem_t rx_notice;
-    osa_mutex_t lock;
-
-    at_response_t resp;
-    osa_sem_t resp_notice;
-    at_resp_status_t resp_status;
-
-    struct at_urc_table *urc_table;
-    size_t urc_table_size;
-    /* [quectel add] */
-    const struct at_urc *urc;
-
-    osa_task_t parser;
-};
-typedef struct at_client *at_client_t;
-
 
 /* ========================== multiple AT client function ============================ */
-
-/* [quectel modify] AT client initialize and start */
-/* int at_client_init(const char *dev_name,  rt_size_t recv_bufsz); */
+/* AT client initialize and start*/
 int at_client_init(size_t recv_bufsz, size_t send_bufsz);
-
 /* get AT client object */
 at_client_t at_client_get(void);
 at_client_t at_client_get_first(void);
@@ -158,11 +143,9 @@ at_client_t at_client_get_first(void);
 int at_client_obj_wait_connect(at_client_t client, u32_t timeout);
 
 /* AT client send or receive data */
-size_t at_client_obj_send(at_client_t client, const char *buf, size_t size);
-size_t at_client_obj_recv(at_client_t client, char *buf, size_t size, int32_t timeout);
-/* [quectel add] */
+size_t at_client_obj_send(at_client_t client, const char *buf, size_t size, bool print);
+size_t at_client_obj_recv(at_client_t client, char *buf, size_t size, int32_t timeout, bool print);
 size_t at_client_self_recv(at_client_t client, char *buf, size_t size, int32_t timeout,u8_t mode);
-
 /* set AT client a line end sign */
 void at_obj_set_end_sign(at_client_t client, char ch);
 
@@ -172,19 +155,22 @@ int at_obj_set_urc_table(at_client_t client, const struct at_urc * table, size_t
 /* AT client send commands to AT server and waiter response */
 int at_obj_exec_cmd(at_client_t client, at_response_t resp, const char *cmd_expr, ...);
 
+int at_obj_exec_cmd_with_data(at_client_t client, const char *cmd, const char *data, size_t size);
 /* AT response object create and delete */
 at_response_t at_create_resp(size_t buf_size, size_t line_num, int32_t timeout);
+
+at_response_t at_create_resp_new(size_t buf_size, size_t line_num, int32_t timeout, void *arg);
 void at_delete_resp(at_response_t resp);
 at_response_t at_resp_set_info(at_response_t resp, size_t buf_size, size_t line_num, int32_t timeout);
-/* [quectel add] */
+at_response_t at_resp_set_info_new(at_response_t resp, size_t buf_size, size_t line_num, int32_t timeout, void *arg);
 at_response_t at_create_resp_by_selffunc(size_t buf_size, size_t line_num, int32_t timeout, resp_func func);
+at_response_t at_create_resp_by_selffunc_new(size_t buf_size, size_t line_num, int32_t timeout, resp_func func, void *arg);
 
 /* AT response line buffer get and parse response buffer arguments */
 const char *at_resp_get_line(at_response_t resp, size_t resp_line);
 const char *at_resp_get_line_by_kw(at_response_t resp, const char *keyword);
 int at_resp_parse_line_args(at_response_t resp, size_t resp_line, const char *resp_expr, ...);
 int at_resp_parse_line_args_by_kw(at_response_t resp, const char *keyword, const char *resp_expr, ...);
-
 
 /* ========================== single AT client function ============================ */
 
@@ -195,13 +181,15 @@ int at_resp_parse_line_args_by_kw(at_response_t resp, const char *keyword, const
 
 #define at_exec_cmd(resp, ...)                   at_obj_exec_cmd(at_client_get_first(), resp, __VA_ARGS__)
 #define at_client_wait_connect(timeout)          at_client_obj_wait_connect(at_client_get_first(), timeout)
-#define at_client_send(buf, size)                at_client_obj_send(at_client_get_first(), buf, size)
-#define at_client_recv(buf, size, timeout)       at_client_obj_recv(at_client_get_first(), buf, size, timeout)
-/* [quectel add] */
-#define at_self_recv(buf, size, timeout,mode)    at_client_self_recv(at_client_get_first(), buf, size, timeout,mode)
+#define at_client_send(buf, size)                at_client_obj_send(at_client_get_first(), buf, size, true)
+#define at_client_recv(buf, size, timeout)       at_client_obj_recv(at_client_get_first(), buf, size, timeout, true)
+#define at_self_recv(buf, size, timeout,mode)           at_client_self_recv(at_client_get_first(), buf, size, timeout,mode)
+
 #define at_set_end_sign(ch)                      at_obj_set_end_sign(at_client_get_first(), ch)
 #define at_set_urc_table(urc_table, table_sz)    at_obj_set_urc_table(at_client_get_first(), urc_table, table_sz)
 
+
+/* ========================== User port function ============================ */
 
 #ifdef __cplusplus
 }

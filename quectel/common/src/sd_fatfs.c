@@ -5,12 +5,11 @@
  *      Author: barry
  */
 #include "QuectelConfig.h"
-#ifdef __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_TFCARD__
+#ifdef __QUECTEL_UFP_FEATURE_SUPPORT_TFCARD__
 #include "sd_fatfs.h"
 #include "debug_service.h"
 #include "fatfs.h"
 #include "common_hal.h"
-#include "qosa_def.h"
 #include "qosa_log.h"
 
 // #define FF_MAX_SS 512
@@ -21,14 +20,23 @@ void SD_hardware_init(void)
 	HAL_GPIO_WritePin(UFP_SD_EN_PORT, UFP_SD_EN_PIN, GPIO_PIN_SET);
 }
 
-void SD_INIT(void)
+void SD_hardware_deinit(void)
+{
+	HAL_GPIO_WritePin(UFP_SD_EN_PORT, UFP_SD_EN_PIN, GPIO_PIN_RESET);
+}
+
+bool SD_INIT(void)
 {
 	uint8_t RES;
-
+	uint64_t total_bytes;
+	uint32_t total_gb;
+	uint32_t decimal_part;
+	DWORD free_clusters;
+    FATFS* fs_ptr;
 	if (BSP_SD_IsDetected() != SD_PRESENT)
 	{
 		LOG_E("*** No SD card detected...\r\n");
-		return;
+		return QOSA_FALSE;
 	}
 	LOG_D("SD card detected !");
 	// SD_hardware_init();	// already enabled in MX_SDIO_SD_Init();
@@ -38,65 +46,70 @@ void SD_INIT(void)
 	{
 		/* FatFs Initialization Error */
 		LOG_D("Fat System OK");
-		/* 锟�?????娴婼D鍗℃槸鍚︽甯革紙澶勪簬鏁版嵁浼犺緭妯″紡鐨勪紶杈撶姸鎬侊�? */
 		if(HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER)
 		{
 			LOG_D("Initialize SD card successfully!");
-			// 鎵撳嵃SD鍗″熀鏈俊锟�??????
-			LOG_D("SD card information! ");
-			LOG_D("CardCapacity  : %llu ", (unsigned long long)hsd.SdCard.BlockSize * hsd.SdCard.BlockNbr);// 鏄剧ず瀹归�?
-			LOG_D("CardBlockSize : %d ", hsd.SdCard.BlockSize);   // 鍧楀ぇ锟�??????
-			LOG_D("LogBlockNbr   : %d ", hsd.SdCard.LogBlockNbr);	// 閫昏緫鍧楁暟锟�?????
-			LOG_D("LogBlockSize  : %d ", hsd.SdCard.LogBlockSize);// 閫昏緫鍧楀ぇ锟�??????
-			LOG_D("RCA           : %d ", hsd.SdCard.RelCardAdd);  // 鍗＄浉瀵瑰湴锟�??????
-			LOG_D("CardType      : %d ", hsd.SdCard.CardType);    // 鍗＄被锟�??????
+			LOG_D("SD card information!");
+			// can not print float
+			total_bytes = (uint64_t)hsd.SdCard.BlockSize * hsd.SdCard.BlockNbr;
+			total_gb = total_bytes / (1024 * 1024 * 1024);      // 整数部分（GB）
+			decimal_part = (total_bytes % (1024 * 1024 * 1024)) / (1024 * 1024) * 100 / 1024; // 小数部分（）
+			// 打印结果（格式：X.Y GB）
+			LOG_D("CardCapacity  : %lu.%02uGB", total_gb, decimal_part);// Total storage capacity (BlockSize × BlockNbr)
+
+			RES = f_getfree("0:", &free_clusters, &fs_ptr);
+			if (FR_OK == RES)
+			{
+				total_bytes = (uint64_t)free_clusters * fs_ptr->csize * hsd.SdCard.BlockSize;
+				total_gb = total_bytes / (1024 * 1024 * 1024);
+				decimal_part = (total_bytes % (1024 * 1024 * 1024)) / (1024 * 1024) * 100 / 1024;
+				LOG_D("FreeSpace     : %lu.%02uGB", total_gb, decimal_part);
+			}
+			LOG_D("CardBlockSize : %d", hsd.SdCard.BlockSize);   // Physical block size 
+			LOG_D("LogBlockNbr   : %d", hsd.SdCard.LogBlockNbr);	// Number of logical blocks
+			LOG_D("LogBlockSize  : %d", hsd.SdCard.LogBlockSize);// Logical block size
+			LOG_D("RCA           : 0x%X", hsd.SdCard.RelCardAdd);  // Relative Card Address
+			LOG_D("CardType      : %d (0: <= 2GB; 1: 2GB-32GB; 2: >32GB)", hsd.SdCard.CardType);    // Card type
 			// 
 			HAL_SD_CardCIDTypeDef sdcard_cid;
 			HAL_SD_GetCardCID(&hsd,&sdcard_cid);
-			LOG_D("ManufacturerID: %d ",sdcard_cid.ManufacturerID);
-		}
-		else
-		{
-			LOG_E("SD card init fail!" );
+			LOG_D("ManufacturerID: 0x%02x (0x03: SanDisk; 0x1A: ADATA; 0x1B: Samsung; 0x41: Kingston)", sdcard_cid.ManufacturerID); // Manufacturer ID
+			LOG_I("sd card mount success! ");
+			return QOSA_TRUE;
 		}
 	}
-	else
+
+	LOG_E("sd card mount valit falil %d", RES);
+	return QOSA_FALSE;
+}
+
+void SD_DEINIT(void)
+{
+	uint8_t RES;
+
+	RES = f_mount(NULL, "0:", 1);
+	SD_hardware_deinit();
+	if(RES ==FR_OK)
 	{
-		LOG_E("Fat System Err,RES=%d!!!",RES);
+		/* FatFs Initialization Error */
+		LOG_I("sd card umount success!");
 	}
-	if(f_mount(&SDFatFS,"0:",1) == FR_NO_FILESYSTEM)		//娌℃湁鏂囦欢绯荤粺锛屾牸寮忓�?
-	{
-		LOG_W("sd card NO_FILESYSTEM! ");
-		// RES = f_mkfs("0:", 0, FF_MAX_SS,work,sizeof(work));
-		// if(RES ==QOSA_OK)
-		// {
-		// 	LOG_I("sd card mkfs success");
-		// 	RES = f_mount(NULL,"0:",1); 		//鏍煎紡鍖栧悗鍏堝彇娑堟寕锟�?????
-		// 	RES = f_mount(&SDFatFS,"0:",1);			//閲嶆柊鎸傝浇
-		// 	if(RES == QOSA_OK)
-		// 	{
-		// 		LOG_I("sd card mount success!");
-		// 	}
-		// }
-		// else
-		// {
-		// 	LOG_E("sd card mkfs fail=%d!!!",RES);
-		// 	return;
-		// }
-	}
-	else if(RES == QOSA_OK)
-	{
-		LOG_I("sd card mount success! ");
-	}
-	else
-	{
-		LOG_E("sd card mount valit falil! ");
-	    return;
-	}
+	MX_FATFS_DeInit();
+}
+
+uint64_t get_sdcard_free_space(void)
+{
+	uint8_t RES;
+	DWORD free_clusters;
+    FATFS* fs_ptr;
+	RES = f_getfree("0:", &free_clusters, &fs_ptr);
+	if (FR_OK != RES)
+		return 0;
+	return (uint64_t)free_clusters * fs_ptr->csize * hsd.SdCard.BlockSize / (1024 * 1024) ;
 }
 
 #else
 void SD_hardware_init(void)
 {
 }
-#endif /* __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_TFCARD__ */
+#endif /* __QUECTEL_UFP_FEATURE_SUPPORT_TFCARD__ */

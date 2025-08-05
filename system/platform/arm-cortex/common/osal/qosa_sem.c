@@ -50,7 +50,7 @@ int qosa_sem_create(osa_sem_t *semaRef, u32_t initialCount)
     hndl->count = initialCount;
     hndl->maxCount = 0x7FFFFFFF;
 
-    hndl->sem = osSemaphoreNew(1, 0, NULL);
+    hndl->sem = osSemaphoreNew(5, 0, NULL);
     if (hndl->sem == NULL)
     {
         printf("CreateSemaphore failed with error code\n");
@@ -126,7 +126,7 @@ int qosa_sem_wait(osa_sem_t semaRef, u32_t timeout)
         hndl->count--;
         ret = QOSA_OK;
     }
-    else if (ret == -2) //osErrorTimeout
+    else if (ret == -2 || ret == -3) //osErrorTimeout
     {
         //信号量等待超时
         ret = QOSA_ERROR_SEMA_TIMEOUT_ERR;

@@ -75,8 +75,8 @@
 									<listOptionValue builtIn="false" value="../../../../../apps/sockets"/>
 									<listOptionValue builtIn="false" value="../../../../../quectel"/>
 									<listOptionValue builtIn="false" value="../../../../../quectel/common/inc"/>
-									<listOptionValue builtIn="false" value="../../../../../quectel/modules/bg95"/>
-									<listOptionValue builtIn="false" value="../../../../../quectel/modules/ec20"/>
+									<listOptionValue builtIn="false" value="../../../../../quectel/modules/inc"/>
+									<listOptionValue builtIn="false" value="../../../../../quectel/modules/src"/>
 									<listOptionValue builtIn="false" value="../../../../../quectel/third_party/at_client/include"/>
 									<listOptionValue builtIn="false" value="../../../../../quectel/third_party/at_socket"/>
 								</option>

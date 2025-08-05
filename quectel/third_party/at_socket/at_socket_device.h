@@ -22,7 +22,7 @@
  * 2019-05-08     chenyong     first version
  */
 #include "QuectelConfig.h"
-#ifdef __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_SOCKET__
+#ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET__
 #ifndef __AT_SOCKET_DEVICE_H__
 #define __AT_SOCKET_DEVICE_H__
 
@@ -64,4 +64,4 @@ int at_device_socket_unregister(void);
 #endif
 
 #endif /* __AT_SOCKET_DEVICE_H__ */
-#endif /* __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_SOCKET__ */
+#endif /* __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET__ */

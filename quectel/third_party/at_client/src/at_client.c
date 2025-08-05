@@ -14,18 +14,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "stdarg.h"
 #include "qosa_def.h"
+#include "stdarg.h"
 #include "qosa_log.h"
 
 #define NAME_MAX       8
+#define QL_MODULE_SEND_MAX_SIZE       1460
 
-#define AT_RESP_END_OK                 "OK"
-#define AT_RESP_END_ERROR              "ERROR"
-#define AT_RESP_END_FAIL               "FAIL"
-#define AT_END_CR_LF                   "\r\n"
+#define AT_RESP_END_OK    "OK"
+#define AT_RESP_END_ERROR "ERROR"
+#define AT_RESP_CME_ERR "+CME ERROR"
+#define AT_RESP_END_FAIL  "FAIL"
+#define AT_END_CR_LF      "\r\n"
 
-static struct at_client at_client_table[AT_CLIENT_NUM_MAX] = { 0 };
+static struct at_client at_client_table[1] = {0};
 
 extern size_t at_utils_send(size_t pos, const void *buffer, size_t size);
 extern size_t at_vprintfln(char *send_buf, size_t buf_size, const char *format, va_list args);
@@ -72,11 +74,48 @@ at_response_t at_create_resp(size_t buf_size, size_t line_num, int32_t timeout)
     return resp;
 }
 
+at_response_t at_create_resp_new(size_t buf_size, size_t line_num, int32_t timeout, void *arg)
+{
+     at_response_t resp = NULL;
+
+    resp = (at_response_t) calloc(1, sizeof(struct at_response));
+    if (resp == NULL)
+    {
+        LOG_E("AT create response object failed! No memory for response object!");
+        return NULL;
+    }
+
+    resp->buf = (char *) calloc(1, buf_size);
+    if (resp->buf == NULL)
+    {
+        LOG_E("AT create response object failed! No memory for response buffer!");
+        free(resp);
+        return NULL;
+    }
+
+    resp->buf_size = buf_size;
+    resp->line_num = line_num;
+    resp->line_counts = 0;
+    resp->timeout = timeout;
+    resp->self_func = NULL;
+    resp->arg = arg;
+    return resp;   
+}
 at_response_t at_create_resp_by_selffunc(size_t buf_size, size_t line_num, int32_t timeout, resp_func func)
 {
     at_response_t resp = NULL;
 
     resp = at_create_resp(buf_size, line_num, timeout);
+    resp->self_func = func;
+
+    return resp;
+}
+
+at_response_t at_create_resp_by_selffunc_new(size_t buf_size, size_t line_num, int32_t timeout, resp_func func, void *arg)
+{
+    at_response_t resp = NULL;
+
+    resp = at_create_resp_new(buf_size, line_num, timeout, arg);
     resp->self_func = func;
 
     return resp;
@@ -138,6 +177,33 @@ at_response_t at_resp_set_info(at_response_t resp, size_t buf_size, size_t line_
     resp->line_num = line_num;
     resp->timeout = timeout;
 
+    return resp;
+}
+
+at_response_t at_resp_set_info_new(at_response_t resp, size_t buf_size, size_t line_num, int32_t timeout, void *arg)
+{
+    char *p_temp;
+    QOSA_ASSERT(resp);
+
+    if (resp->buf_size != buf_size)
+    {
+        resp->buf_size = buf_size;
+
+        p_temp = (char *)realloc(resp->buf, buf_size);
+        if (p_temp == NULL)
+        {
+            LOG_D("No memory for realloc response buffer size(%d).", buf_size);
+            return NULL;
+        }
+        else
+        {
+            resp->buf = p_temp;
+        }
+    }
+
+    resp->line_num = line_num;
+    resp->timeout = timeout;
+    resp->arg = arg;
     return resp;
 }
 
@@ -315,7 +381,8 @@ int at_obj_exec_cmd(at_client_t client, at_response_t resp, const char *cmd_expr
 
     client->resp_status = AT_RESP_OK;
     client->resp = resp;
-
+    client->self_func = resp->self_func;
+    client->arg = resp->arg;
     if (resp != NULL)
     {
         resp->buf_len = 0;
@@ -341,7 +408,7 @@ int at_obj_exec_cmd(at_client_t client, at_response_t resp, const char *cmd_expr
         }
         if (client->resp_status != AT_RESP_OK)
         {
-            LOG_E("execute command (%.*s) failed!", client->last_cmd_len, client->send_buf);
+            LOG_W("execute command (%.*s) failed!", client->last_cmd_len, client->send_buf);
             result = QOSA_ERROR_GENERAL;
             goto __exit;
         }
@@ -353,6 +420,36 @@ __exit:
     qosa_mutex_unlock(client->lock);
 
     return result;
+}
+
+int at_obj_exec_cmd_with_data(at_client_t client, const char *cmd, const char *data, size_t size)
+{
+    size_t sent_len = 0;
+    size_t need_len = 0;
+    char cmd_exc[128] = {0};
+    char result_str[32] = {0};
+    at_response_t resp = QOSA_NULL;
+    qosa_mutex_lock(client->lock, QOSA_WAIT_FOREVER);
+    at_obj_set_end_sign(client, '>');
+    while (sent_len < size)
+    {
+        need_len = ((size - sent_len) > QL_MODULE_SEND_MAX_SIZE) ? QL_MODULE_SEND_MAX_SIZE : (size - sent_len);
+        
+        resp = at_create_resp_new(128, 0, 5 * RT_TICK_PER_SECOND, NULL);
+        snprintf(cmd_exc, sizeof(cmd_exc), cmd, need_len);
+        if (at_obj_exec_cmd(client, resp, cmd_exc) < 0)
+            break;
+        
+        need_len = at_client_obj_send(client, data + sent_len, need_len, true);
+        qosa_sem_wait(client->resp_notice, 1000);
+        at_delete_resp(resp);
+        qosa_task_sleep_ms(10);
+
+        sent_len += need_len;
+    }
+    at_obj_set_end_sign(client, 0);
+    qosa_mutex_unlock(client->lock);
+    return sent_len;
 }
 
 /**
@@ -377,7 +474,7 @@ int at_client_obj_wait_connect(at_client_t client, u32_t timeout_ms)
         return QOSA_ERROR_GENERAL;
     }
 
-    resp = at_create_resp(64, 0, 1000);
+    resp = at_create_resp(128, 0, 1000);
     if (resp == NULL)
     {
         LOG_E("no memory for AT client response object.");
@@ -429,9 +526,9 @@ int at_client_obj_wait_connect(at_client_t client, u32_t timeout_ms)
  * @return >0: send data size
  *         =0: send failed
  */
-size_t at_client_obj_send(at_client_t client, const char *buf, size_t size)
+size_t at_client_obj_send(at_client_t client, const char *buf, size_t size, bool print)
 {
-    size_t len;
+    size_t len = 0;
 
     QOSA_ASSERT(buf);
 
@@ -442,7 +539,10 @@ size_t at_client_obj_send(at_client_t client, const char *buf, size_t size)
     }
 
 #ifdef AT_PRINT_RAW_CMD
-    at_print_raw_cmd("sendline", buf, size);
+    if (print)
+        at_print_raw_cmd("sendline", buf, size);
+    else
+        LOG_I("sendline %d bytes data", size);
 #endif
 
     qosa_mutex_lock(client->lock, QOSA_WAIT_FOREVER);
@@ -483,7 +583,7 @@ static int at_client_getchar(at_client_t client, char *ch, int32_t timeout)
  * @return >0: receive data size
  *         =0: receive failed
  */
-size_t at_client_obj_recv(at_client_t client, char *buf, size_t size, int32_t timeout)
+size_t at_client_obj_recv(at_client_t client, char *buf, size_t size, int32_t timeout, bool print)
 {
     size_t len = 0;
 
@@ -520,7 +620,10 @@ size_t at_client_obj_recv(at_client_t client, char *buf, size_t size, int32_t ti
     }
 
 #ifdef AT_PRINT_RAW_CMD
-    at_print_raw_cmd("urc_recv", buf, len);
+    if (print)
+        at_print_raw_cmd("urc_recv", buf, len);
+    else
+        LOG_I("urc_recv %d bytes data", len);
 #endif
 
     return len;
@@ -540,9 +643,10 @@ size_t at_client_self_recv(at_client_t client, char *buf, size_t size, int32_t t
         return 0;
     }
 
-    while (1) {
-           if (read_idx < size)
-           {
+    while (1)
+    {
+        if (read_idx < size)
+        {
             result = at_client_getchar(client, &ch, timeout);
             if (result != QOSA_OK)
             {
@@ -559,13 +663,12 @@ size_t at_client_self_recv(at_client_t client, char *buf, size_t size, int32_t t
                 }
                  last_ch = ch;
             }
-
-
-        } else {
+        }
+        else
+        {
             break;
         }
     }
-
     return read_idx;
 }
 
@@ -771,12 +874,18 @@ static void client_parser(void *argv)
     {
         if (at_recv_readline(client) > 0)
         {
-            if (client->urc != NULL)
+            if (strstr(client->recv_line_buf, "SEND OK") || strstr(client->recv_line_buf, "SEND FAIL"))
+            {
+                qosa_sem_release(client->resp_notice);
+            }
+            else if (client->urc != NULL)
             {
                 /* current receive is request, try to execute related operations */
                 if (client->urc->func != NULL)
                 {
-                    client->urc->func(client, client->recv_line_buf, client->recv_line_len);
+                    if (strstr(client->recv_line_buf, AT_RESP_END_ERROR) != NULL)
+                        qosa_sem_release(client->resp_notice);
+                    client->urc->func(client, client->recv_line_buf, client->recv_line_len, client->arg);
                 }
                 client->urc = NULL;
             }
@@ -784,11 +893,12 @@ static void client_parser(void *argv)
             {
                 at_response_t resp = client->resp;
 
-                if (resp->self_func != NULL)
+                if (client->self_func != NULL)
                 {
                     qosa_sem_release(client->resp_notice);
-                    resp->self_func(client->recv_line_buf, client->recv_line_len);
+                    client->self_func(client->recv_line_buf, client->recv_line_len, client->arg);
                     client->resp = NULL;
+                    client->self_func = NULL;
                 }
                 else
                 {
@@ -824,11 +934,16 @@ static void client_parser(void *argv)
                     {
                         client->resp_status = AT_RESP_ERROR;
                     }
+                    else if (strstr(client->recv_line_buf, AT_RESP_CME_ERR) != NULL)
+                    {
+                        client->resp_status = AT_RESP_ERROR;
+                    }
                     else if (resp->line_counts == resp->line_num && resp->line_num)
                     {
                         /* get the end data by response line, return response state END_OK.*/
                         client->resp_status = AT_RESP_OK;
                     }
+                    
                     else
                     {
                         //LOG_D("continue");
@@ -836,7 +951,6 @@ static void client_parser(void *argv)
                     }
 
                     client->resp = NULL;
-                    //LOG_D("...");
                     qosa_sem_release(client->resp_notice);
                 }
             }

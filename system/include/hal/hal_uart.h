@@ -15,6 +15,7 @@
 **********************************************************************/
 #ifndef _HAL_UART_H__
 #define _HAL_UART_H__
+#include <stdint.h>
 
 typedef int (*event_callback_t)(void *argv);
 
@@ -27,5 +28,7 @@ int qosa_uart_write(int pos, const char *buffer, size_t size);
 int qosa_uart_read(int pos, const char *buffer, size_t size);
 
 void qosa_uart_hardware_init(void);
+
+void USER_GET_DEBUG_INPUT_DATA(const uint8_t **pData, uint16_t *pSize);
 
 #endif /* _HAL_UART_H__ */

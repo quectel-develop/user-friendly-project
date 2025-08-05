@@ -20,7 +20,12 @@ int qosa_mutex_create(osa_mutex_t *mutexRef)
 {
     osa_mutex_t              hMutex = NULL;
 
-    hMutex = osMutexNew(NULL);
+    osMutexAttr_t mutex_attr =
+    {
+        .name = "MyRecursiveMutex",
+        .attr_bits = osMutexRecursive
+    };
+    hMutex = osMutexNew(&mutex_attr);
     if (hMutex == NULL)
     {
         return QOSA_ERROR_MUTEX_CREATE_ERR;

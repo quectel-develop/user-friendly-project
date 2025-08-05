@@ -5,12 +5,17 @@
  *      Author: barry
  */
 #include "QuectelConfig.h"
-#ifdef __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_TFCARD__
+#ifdef __QUECTEL_UFP_FEATURE_SUPPORT_TFCARD__
 #ifndef _SD_FATFS_H_
 #define _SD_FATFS_H_
+#include <stdbool.h>
+#include "qosa_def.h"
 
-void SD_INIT(void);
+bool SD_INIT(void);
 
+void SD_DEINIT(void);
+
+uint64_t get_sdcard_free_space(void);
 #endif /* COMMON_INC_SD_FATFS_H_ */
 
-#endif /* __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_TFCARD__ */
+#endif /* __QUECTEL_UFP_FEATURE_SUPPORT_TFCARD__ */

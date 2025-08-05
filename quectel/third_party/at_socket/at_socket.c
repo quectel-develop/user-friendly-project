@@ -8,7 +8,7 @@
  * 2018-06-06     chenyong     first version
  */
 #include "QuectelConfig.h"
-#ifdef __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_SOCKET__
+#ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET__
 #include <at.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,10 +17,10 @@
 #include "qosa_log.h"
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN64)
-#elif __linux__                                                                                                                                        
+#elif __linux__
 #else
 #include <sys/time.h>
-#endif  
+#endif
 
 #include <at_socket.h>
 #include <at_socket_device.h>
@@ -75,8 +75,8 @@ struct at_socket *at_get_socket(int socket)
                 return at_sock;
             }
         }
-    } 
-    
+    }
+
     QOSA_HW_INTERRUPT_ENABLE(level);
 
     return QOSA_NULL;
@@ -115,9 +115,10 @@ static int at_recvpkt_all_delete(rt_slist_t *rlist)
         return 0;
     }
 
-    for(node = rt_slist_first(rlist); node; node = rt_slist_next(node))
+    for(node = rt_slist_first(rlist); node;)
     {
         pkt = rt_slist_entry(node, struct at_recv_pkt, list);
+        node = rt_slist_next(node);
         if (pkt->buff)
         {
             free(pkt->buff);
@@ -163,6 +164,7 @@ static size_t at_recvpkt_get(rt_slist_t *rlist, char *mem, size_t len, s64_t *pk
 {
     rt_slist_t *node = QOSA_NULL;
     at_recv_pkt_t pkt = QOSA_NULL;
+    rt_slist_t *free_node = QOSA_NULL;
     size_t content_pos = 0, page_pos = 0;
     s64_t cur_pkt_type = -1;
 
@@ -170,14 +172,15 @@ static size_t at_recvpkt_get(rt_slist_t *rlist, char *mem, size_t len, s64_t *pk
     {
         return 0;
     }
-    for (node = rt_slist_first(rlist); ((node != QOSA_NULL) && ((unsigned long)node != QOSA_INVALID_ADDRESS)); node = rt_slist_next(node))
+    for (node = rt_slist_first(rlist); node;)
     {
         pkt = rt_slist_entry(node, struct at_recv_pkt, list);
 
         if ((pkt->pkt_type != cur_pkt_type) && (cur_pkt_type != -1))
             break;
+        free_node = node;
+        node = rt_slist_next(node);
 
-        cur_pkt_type = pkt->pkt_type;
         page_pos = pkt->bfsz_totle - pkt->bfsz_index;
         if (page_pos >= len - content_pos)
         {
@@ -185,7 +188,7 @@ static size_t at_recvpkt_get(rt_slist_t *rlist, char *mem, size_t len, s64_t *pk
             pkt->bfsz_index += len - content_pos;
             if (pkt->bfsz_index == pkt->bfsz_totle)
             {
-                at_recvpkt_node_delete(rlist, node);
+                at_recvpkt_node_delete(rlist, free_node);
             }
             content_pos = len;
             break;
@@ -195,7 +198,7 @@ static size_t at_recvpkt_get(rt_slist_t *rlist, char *mem, size_t len, s64_t *pk
             memcpy((char *) mem + content_pos, pkt->buff + pkt->bfsz_index, page_pos);
             content_pos += page_pos;
             pkt->bfsz_index += page_pos;
-            at_recvpkt_node_delete(rlist, node);
+            at_recvpkt_node_delete(rlist, free_node);
         }
     }
     if (pkt_type)
@@ -313,7 +316,7 @@ static int alloc_empty_socket(rt_slist_t *l)
     return idx;
 }
 
-static struct at_socket *alloc_socket_by_device(struct at_device *device, enum at_socket_type type)
+static struct at_socket *alloc_socket_by_device(struct at_device *device, enum at_socket_type type, int new_idx)
 {
     static osa_mutex_t at_slock = QOSA_NULL;
     struct at_socket *sock = QOSA_NULL;
@@ -340,7 +343,12 @@ static struct at_socket *alloc_socket_by_device(struct at_device *device, enum a
     }
     else
     {
-        for (idx = 0; idx < device->socket_num && device->sockets[idx].magic; idx++);
+        if (-1 == new_idx)
+            for (idx = 0; idx < device->socket_num && device->sockets[idx].magic; idx++);
+        else
+        {
+            idx = new_idx;
+        }
     }
 
     /* can't find an empty protocol family entry */
@@ -351,7 +359,7 @@ static struct at_socket *alloc_socket_by_device(struct at_device *device, enum a
 
     sock = &(device->sockets[idx]);
     /* the socket descriptor is the number of sockte lists */
-    sock->socket = alloc_empty_socket(&(sock->list));
+    sock->socket = idx;// alloc_empty_socket(&(sock->list));
     /* the socket operations is the specify operations of the device */
     sock->ops = device->socket_ops;
     /* the user-data is the at device socket descriptor */
@@ -393,7 +401,7 @@ __err:
     return QOSA_NULL;
 }
 
-static struct at_socket *alloc_socket(enum at_socket_type type)
+static struct at_socket *alloc_socket(enum at_socket_type type, int idx)
 {
     struct at_device *device = QOSA_NULL;
 
@@ -402,7 +410,7 @@ static struct at_socket *alloc_socket(enum at_socket_type type)
     {
         return QOSA_NULL;
     }
-    return alloc_socket_by_device(device, type);
+    return alloc_socket_by_device(device, type, idx);
 }
 
 static void at_recv_notice_cb(struct at_socket *sock, at_socket_evt_t event, const char *buff, size_t bfsz, s64_t pkt_type);
@@ -434,7 +442,7 @@ int at_socket(int domain, int type, int protocol)
     }
 
     /* allocate and initialize a new AT socket */
-    sock = alloc_socket(socket_type);
+    sock = alloc_socket(socket_type, -1);
     if (sock == QOSA_NULL)
     {
         return -1;
@@ -503,8 +511,8 @@ int at_closesocket(int socket)
     /* deal with TCP server actively disconnect */
     qosa_task_sleep_ms(100);
     
-    sock = at_get_socket(socket);
-    if (sock == QOSA_NULL)
+    sock = &(at_device_get()->sockets[socket]);
+    if (sock == QOSA_NULL || sock->magic != AT_SOCKET_MAGIC)
     {
         return -1;
     }
@@ -532,8 +540,8 @@ int at_shutdown(int socket, int how)
     struct at_socket *sock = QOSA_NULL;
     enum at_socket_state last_state;
 
-    sock = at_get_socket(socket);
-    if (sock == QOSA_NULL)
+    sock = &(at_device_get()->sockets[socket]);
+    if (sock == QOSA_NULL || sock->magic != AT_SOCKET_MAGIC)
     {
         return -1;
     }
@@ -581,9 +589,8 @@ int at_bind(int socket, const struct sockaddr *name, socklen_t namelen)
     struct at_device *device = QOSA_NULL;
     ip_addr_t input_ipaddr, local_ipaddr;
     uint16_t port = 0;
-
-    sock = at_get_socket(socket);
-    if (sock == QOSA_NULL)
+    sock = &(at_device_get()->sockets[socket]);
+    if (sock == QOSA_NULL  || sock->magic != AT_SOCKET_MAGIC)
     {
         return -1;
     }
@@ -596,11 +603,11 @@ int at_bind(int socket, const struct sockaddr *name, socklen_t namelen)
     socketaddr_to_ipaddr_port(name, &input_ipaddr, &port);
 
     /* input ip address is different from device ip address */
-    if (ip_addr_cmp(&input_ipaddr, &local_ipaddr) == 0)
-    {   
-		LOG_E("input ip address is different from device ip address\r\n");
-		return -1;
-    }
+    // if (ip_addr_cmp(&input_ipaddr, &local_ipaddr) == 0)
+    // {   
+	// 	LOG_E("input ip address is different from device ip address\r\n");
+	// 	return -1;
+    // }
     sock->sin_port = port;
     sock->is_client = QOSA_FALSE;
 
@@ -649,7 +656,7 @@ static void at_closed_notice_cb(struct at_socket *sock, at_socket_evt_t event, c
     at_do_event_changes(sock, AT_EVENT_RECV, QOSA_TRUE);
     at_do_event_changes(sock, AT_EVENT_ERROR, QOSA_TRUE);
 
-    sock->state = AT_SOCKET_CLOSED;
+    sock->state = AT_SOCKET_CLOSING;
     qosa_sem_release(sock->recv_notice);
 }
 
@@ -661,8 +668,8 @@ int at_connect(int socket, const struct sockaddr *name, socklen_t namelen)
     char ipstr[16] = { 0 };
     int result = 0;
 
-    sock = at_get_socket(socket);
-    if (sock == QOSA_NULL)
+    sock = &(at_device_get()->sockets[socket]);
+    if (sock == QOSA_NULL || sock->magic != AT_SOCKET_MAGIC)
     {
         result = -1;
         goto __exit;
@@ -720,8 +727,8 @@ int at_recvfrom(int socket, void *mem, size_t len, int flags, struct sockaddr *f
         return -1;
     }
 
-    sock = at_get_socket(socket);
-    if (sock == QOSA_NULL)
+    sock = &(at_device_get()->sockets[socket]);
+    if (sock == QOSA_NULL || sock->magic != AT_SOCKET_MAGIC)
     {
         result = -1;
         goto __exit;
@@ -782,7 +789,7 @@ int at_recvfrom(int socket, void *mem, size_t len, int flags, struct sockaddr *f
     }
         
     /* socket passively closed, receive function return 0 */
-    if (sock->state == AT_SOCKET_CLOSED)
+    if (sock->state == AT_SOCKET_CLOSED || sock->state == AT_SOCKET_CLOSING)
     {
         result = 0;
         goto __exit;
@@ -820,7 +827,7 @@ int at_recvfrom(int socket, void *mem, size_t len, int flags, struct sockaddr *f
             result = -1;
             goto __exit;
         }
-        else if (sock->state != AT_SOCKET_CLOSED)
+        else if (sock->state != AT_SOCKET_CLOSED && sock->state != AT_SOCKET_CLOSING)
         {          
             /* get receive buffer to receiver ring buffer */
             qosa_mutex_lock(sock->recv_lock, QOSA_WAIT_FOREVER);
@@ -849,7 +856,7 @@ int at_recvfrom(int socket, void *mem, size_t len, int flags, struct sockaddr *f
         else
         {
             LOG_W("socket disconnect");
-            result = -1;
+            result = 0;
             goto __exit;
         }
     }
@@ -900,8 +907,8 @@ int at_sendto(int socket, const void *data, size_t size, int flags, const struct
         goto __exit;
     }
 
-    sock = at_get_socket(socket);
-    if (sock == QOSA_NULL)
+    sock = &(at_device_get()->sockets[socket]);
+    if (sock == QOSA_NULL || sock->magic != AT_SOCKET_MAGIC)
     {
         result = -1;
         goto __exit;
@@ -997,8 +1004,8 @@ int at_getsockopt(int socket, int level, int optname, void *optval, socklen_t *o
         return -1;
     }
 
-    sock = at_get_socket(socket);
-    if (sock == QOSA_NULL)
+    sock = &(at_device_get()->sockets[socket]);
+    if (sock == QOSA_NULL || sock->magic != AT_SOCKET_MAGIC)
     {
         return -1;
     }
@@ -1044,8 +1051,8 @@ int at_setsockopt(int socket, int level, int optname, const void *optval, sockle
         return -1;
     }
 
-    sock = at_get_socket(socket);
-    if (sock == QOSA_NULL)
+    sock = &(at_device_get()->sockets[socket]);
+    if (sock == QOSA_NULL || sock->magic != AT_SOCKET_MAGIC)
     {
         return -1;
     }
@@ -1371,8 +1378,8 @@ int at_listen(int socket, int backlog)
     struct at_socket *sock = QOSA_NULL;
     int result = 0;
 
-    sock = at_get_socket(socket);
-    if (sock == QOSA_NULL)
+    sock = &(at_device_get()->sockets[socket]);
+    if (sock == QOSA_NULL || sock->magic != AT_SOCKET_MAGIC)
     {
         result = -1;
         goto __exit;
@@ -1450,8 +1457,8 @@ int at_accept(int socket, const struct sockaddr *name, socklen_t *namelen)
     struct at_incoming_info incoming_info;
     struct sockaddr_in sin;
 
-    sock = at_get_socket(socket);
-    if (sock == QOSA_NULL)
+    sock = &(at_device_get()->sockets[socket]);
+    if (sock == QOSA_NULL || sock->magic != AT_SOCKET_MAGIC)
     {
         result = -1;
         goto __exit;
@@ -1491,7 +1498,7 @@ int at_accept(int socket, const struct sockaddr *name, socklen_t *namelen)
             }
 
             /* allocate and initialize a new AT socket */
-            news_sock = alloc_socket(sock->type);
+            news_sock = alloc_socket(sock->type, incoming_info.socket);
             if (news_sock == QOSA_NULL)
             {
                 result = -1;
@@ -1528,9 +1535,8 @@ __exit:
             at_do_event_changes(sock, AT_EVENT_ERROR, QOSA_TRUE);
         }
     }
-
     return news_sock->socket;
 }
 
 
-#endif  /* __QUECTEL_USER_FRIENDLY_PROJECT_FEATURE_SUPPORT_SOCKET__ */
+#endif  /* __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET__ */

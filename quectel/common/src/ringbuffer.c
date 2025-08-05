@@ -18,11 +18,11 @@
 
 #define ringbuffer_space_len(rb) ((rb)->buffer_size - ringbuffer_data_len(rb))
 
-// ×î¸ßÎ»Îª´®¿Ú½ÓÊÕÍê³É±ê¼ÇÎ»,µÍ14Î»Îªµ±Ç°½ÓÊÕÊı¾İ³¤¶È
+// æœ€é«˜ä½ä¸ºä¸²å£æ¥æ”¶å®Œæˆæ ‡è®°ä½,ä½14ä½ä¸ºå½“å‰æ¥æ”¶æ•°æ®é•¿åº¦
 // volatile uint16_t g_uart_recv_sta = 0;	
 
 // /**
-//  * @description: ±ê¼Ç½ÓÊÕÍê³É
+//  * @description: æ ‡è®°æ¥æ”¶å®Œæˆ
 //  * @param  none
 //  * @return none
 //  */
@@ -32,7 +32,7 @@
 // }
 
 // /**
-//  * @description: ·µ»Øµ¥´ÎÊı¾İ½ÓÊÕ³¤¶È
+//  * @description: è¿”å›å•æ¬¡æ•°æ®æ¥æ”¶é•¿åº¦
 //  * @param  none
 //  * @return none
 //  */
@@ -42,7 +42,7 @@
 // }
 
 // /**
-//  * @description: ²éÑ¯±ê¼Ç½ÓÊÕ×´Ì¬Î»
+//  * @description: æŸ¥è¯¢æ ‡è®°æ¥æ”¶çŠ¶æ€ä½
 //  * @param  none
 //  * @return none
 //  */
@@ -52,7 +52,7 @@
 // }
 
 // /**
-//  * @description: ½ÓÊÕÊı¾İ³¤¶ÈÔö¼Ó
+//  * @description: æ¥æ”¶æ•°æ®é•¿åº¦å¢åŠ 
 //  * @param  none
 //  * @return none
 //  */
@@ -62,7 +62,7 @@
 // }
 
 // /**
-//  * @description: Çå³ı±ê¼Ç
+//  * @description: æ¸…é™¤æ ‡è®°
 //  * @param  none
 //  * @return none
 //  */
@@ -72,47 +72,47 @@
 // }
 
 // /**
-//  * @description: ¿ªÆô¶¨Ê±Æ÷¼ÆÊı(Èõº¯Êı,ĞèÓÃ»§ÊµÏÖ) 
+//  * @description: å¼€å¯å®šæ—¶å™¨è®¡æ•°(å¼±å‡½æ•°,éœ€ç”¨æˆ·å®ç°) 
 //  * @param  none
 //  * @return none
 //  */
 // __weak void tim_start_count(void)
 // {
-// 	/*×¢Òâ£ºµ±ĞèÒª»Øµ÷Ê±,²»Ó¦ĞŞ¸Ä´Ëº¯Êı,tim_start_count() ĞèÒªÔÚÓÃ»§ÎÄ¼şÖĞÊµÏÖ*/
-// 	/* ¸Ãº¯ÊıÓÃÓÚÆô¶¯TIM¶¨Ê±Æ÷ */
+// 	/*æ³¨æ„ï¼šå½“éœ€è¦å›è°ƒæ—¶,ä¸åº”ä¿®æ”¹æ­¤å‡½æ•°,tim_start_count() éœ€è¦åœ¨ç”¨æˆ·æ–‡ä»¶ä¸­å®ç°*/
+// 	/* è¯¥å‡½æ•°ç”¨äºå¯åŠ¨TIMå®šæ—¶å™¨ */
 // 	LOG_E("please implement this function< tim_start_count() > in the user program!");
 // }
 
 // /**
-//  * @description: Çå³ı¶¨Ê±Æ÷¼ÆÊı(Èõº¯Êı,ĞèÓÃ»§ÊµÏÖ) 
+//  * @description: æ¸…é™¤å®šæ—¶å™¨è®¡æ•°(å¼±å‡½æ•°,éœ€ç”¨æˆ·å®ç°) 
 //  * @param  none
 //  * @return none
 //  */
 // __weak void tim_clear_count(void)
 // {
-// 	/*×¢Òâ£ºµ±ĞèÒª»Øµ÷Ê±,²»Ó¦ĞŞ¸Ä´Ëº¯Êı,tim_clear_count() ĞèÒªÔÚÓÃ»§ÎÄ¼şÖĞÊµÏÖ*/
-// 	/* ¸Ãº¯ÊıÓÃÓÚ½«TIM¶¨Ê±Æ÷¼ÆÊıÇåÁã */
+// 	/*æ³¨æ„ï¼šå½“éœ€è¦å›è°ƒæ—¶,ä¸åº”ä¿®æ”¹æ­¤å‡½æ•°,tim_clear_count() éœ€è¦åœ¨ç”¨æˆ·æ–‡ä»¶ä¸­å®ç°*/
+// 	/* è¯¥å‡½æ•°ç”¨äºå°†TIMå®šæ—¶å™¨è®¡æ•°æ¸…é›¶ */
 // 	LOG_E("please implement this function< tim_clear_count() > in the user program!");
 // }
 
 // /**
-// * @description:  ·¢ËÍÊı¾İµ½rb
-//  * @param  ch ´ı´æ´¢Êı¾İ
+// * @description:  å‘é€æ•°æ®åˆ°rb
+//  * @param  ch å¾…å­˜å‚¨æ•°æ®
 //  * @return none
 //  */
 // void rb_data_putchar(const uint8_t ch)
 // {
-// 	if( 0 == get_uart_recv_sta() ) 						// ½ÓÊÕÎ´Íê³É
+// 	if( 0 == get_uart_recv_sta() ) 						// æ¥æ”¶æœªå®Œæˆ
 // 	{
 // 		if(get_uart_recv_data_len() < BUFF_SIZE_MAX)
 // 		{
 // 			tim_clear_count();
 // 			if( 0 == get_uart_recv_data_len() )
 // 			{
-// 				tim_start_count();						// Ê¹ÄÜ¶¨Ê±Æ÷7µÄÖĞ¶Ï
+// 				tim_start_count();						// ä½¿èƒ½å®šæ—¶å™¨7çš„ä¸­æ–­
 // 			}
 // 			ringbuffer_putstr(&g_uart_rxcb,&ch,1);
-// 			// ½ÓÊÕµ½Ò»×Ö½ÚÊı¾İ,½øĞĞ³¤¶ÈÀÛ¼Ó
+// 			// æ¥æ”¶åˆ°ä¸€å­—èŠ‚æ•°æ®,è¿›è¡Œé•¿åº¦ç´¯åŠ 
 // 			set_uart_recv_data_len();
 // 		}
 // 		else
@@ -123,11 +123,11 @@
 // }
 
 /**
- * @description:  ³õÊ¼»¯rb
+ * @description:  åˆå§‹åŒ–rb
  * @param 			rb  		ringbuffer
- *					bf_pool 	ÄÚ´æ³Ø
- *					size		Êı¾İ´óĞ¡
- * @return Ö´ĞĞ½á¹ûÂë
+ *					bf_pool 	å†…å­˜æ± 
+ *					size		æ•°æ®å¤§å°
+ * @return æ‰§è¡Œç»“æœç 
  */
 int ringbuffer_init(struct ringbuffer* rb, uint8_t* bf_pool, uint16_t size)
 {
@@ -144,9 +144,9 @@ int ringbuffer_init(struct ringbuffer* rb, uint8_t* bf_pool, uint16_t size)
 }
 
 /**
- * @description:  Ê¹ÓÃµÄrb´óĞ¡µÄÖµ
+ * @description:  ä½¿ç”¨çš„rbå¤§å°çš„å€¼
  * @param 			rb  ringbuffer
- * @return Ö´ĞĞ½á¹ûÂë
+ * @return æ‰§è¡Œç»“æœç 
  */
 uint16_t ringbuffer_data_len(struct ringbuffer* rb)
 {
@@ -154,11 +154,11 @@ uint16_t ringbuffer_data_len(struct ringbuffer* rb)
 }
 
 /**
- * @description: ·¢ËÍÊı¾İµ½rbÖĞ
+ * @description: å‘é€æ•°æ®åˆ°rbä¸­
  * @param 			rb  			ringbuffer
- * 					data			´ı·¢ËÍÊı¾İbuffer
- * 					data_length		·¢ËÍµÄÊı¾İ³¤¶È
- * @return Ö´ĞĞ½á¹ûÂë
+ * 					data			å¾…å‘é€æ•°æ®buffer
+ * 					data_length		å‘é€çš„æ•°æ®é•¿åº¦
+ * @return æ‰§è¡Œç»“æœç 
  */
 uint16_t ringbuffer_putstr(struct ringbuffer* rb, const uint8_t* data, uint16_t data_length )
 {
@@ -181,11 +181,11 @@ uint16_t ringbuffer_putstr(struct ringbuffer* rb, const uint8_t* data, uint16_t 
 }
 
 /**
- * @description: ´ÓrbÖĞ¶ÁÈ¡Êı¾İ
+ * @description: ä»rbä¸­è¯»å–æ•°æ®
  * @param 			rb  			ringbuffer
- * 					data			´ı¶ÁÈ¡buffer
- * 					data_length		¶ÁÈ¡µÄÊı¾İ³¤¶È
- * @return Ö´ĞĞ½á¹ûÂë
+ * 					data			å¾…è¯»å–buffer
+ * 					data_length		è¯»å–çš„æ•°æ®é•¿åº¦
+ * @return æ‰§è¡Œç»“æœç 
  */
 int ringbuffer_getstr(struct ringbuffer* rb, uint8_t* data, uint16_t data_length)
 {
@@ -205,5 +205,5 @@ int ringbuffer_getstr(struct ringbuffer* rb, uint8_t* data, uint16_t data_length
         }
 		rb->head = (rb->head + max_read_len) % rb->buffer_size;
     }
-    return 0;
+    return max_read_len;
 }

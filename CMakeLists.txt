@@ -19,7 +19,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # Project Settings
-project("Quectel_UFP_STM32F413RGT6_20250708" C CXX ASM)
+project("Quectel_UFP_STM32F413RGT6_20250728" C CXX ASM)
 message(STATUS "----- PROJECT_NAME [${PROJECT_NAME}] -----")
 
 # Compiler optimization level
@@ -51,17 +51,24 @@ add_definitions(-DUSE_HAL_DRIVER -DSTM32F413xx)
 # Add source file paths recursively (.c/.s files) with dynamic refresh
 # [CONFIGURE DEPENDS] supports dynamic lookup of add-on files
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
-    ${CMAKE_SOURCE_DIR}/apps/*.c
-    ${CMAKE_SOURCE_DIR}/apps/fs/*.c
-    ${CMAKE_SOURCE_DIR}/apps/ftp/*.c
-    ${CMAKE_SOURCE_DIR}/apps/http/*.c
-    ${CMAKE_SOURCE_DIR}/apps/mqtt/*.c
-    ${CMAKE_SOURCE_DIR}/apps/network/*.c
-    ${CMAKE_SOURCE_DIR}/apps/psm/*.c
-    ${CMAKE_SOURCE_DIR}/apps/sockets/*.c
+    ${CMAKE_SOURCE_DIR}/apps/example/fs/*.c
+    ${CMAKE_SOURCE_DIR}/apps/example/ftp/*.c
+    ${CMAKE_SOURCE_DIR}/apps/example/http/*.c
+    ${CMAKE_SOURCE_DIR}/apps/example/mqtt/*.c
+    ${CMAKE_SOURCE_DIR}/apps/example/network/*.c
+    ${CMAKE_SOURCE_DIR}/apps/example/psm/*.c
+    ${CMAKE_SOURCE_DIR}/apps/example/sockets/*.c
+    ${CMAKE_SOURCE_DIR}/apps/test/*.c
+    ${CMAKE_SOURCE_DIR}/apps/test/file/*.c
+    ${CMAKE_SOURCE_DIR}/apps/test/ftp/*.c
+    ${CMAKE_SOURCE_DIR}/apps/test/http/*.c
+    ${CMAKE_SOURCE_DIR}/apps/test/mqtt/*.c
+    ${CMAKE_SOURCE_DIR}/apps/test/network/*.c
+    ${CMAKE_SOURCE_DIR}/apps/test/psm/*.c
+    ${CMAKE_SOURCE_DIR}/apps/test/sockets/*.c
+    ${CMAKE_SOURCE_DIR}/apps/user/*.c
     ${CMAKE_SOURCE_DIR}/quectel/common/src/*.c
-    ${CMAKE_SOURCE_DIR}/quectel/modules/bg95/*.c
-    ${CMAKE_SOURCE_DIR}/quectel/modules/ec20/*.c
+    ${CMAKE_SOURCE_DIR}/quectel/modules/src/*.c
     ${CMAKE_SOURCE_DIR}/quectel/third_party/at_client/src/*.c
     ${CMAKE_SOURCE_DIR}/quectel/third_party/at_socket/*.c
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Core/Src/*.c
@@ -82,18 +89,25 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 
 # Add global include paths (.h files)
 include_directories(
-    ${CMAKE_SOURCE_DIR}/apps
-    ${CMAKE_SOURCE_DIR}/apps/fs
-    ${CMAKE_SOURCE_DIR}/apps/ftp
-    ${CMAKE_SOURCE_DIR}/apps/http
-    ${CMAKE_SOURCE_DIR}/apps/mqtt
-    ${CMAKE_SOURCE_DIR}/apps/network
-    ${CMAKE_SOURCE_DIR}/apps/psm
-    ${CMAKE_SOURCE_DIR}/apps/sockets
+    ${CMAKE_SOURCE_DIR}/apps/example/fs
+    ${CMAKE_SOURCE_DIR}/apps/example/ftp
+    ${CMAKE_SOURCE_DIR}/apps/example/http
+    ${CMAKE_SOURCE_DIR}/apps/example/mqtt
+    ${CMAKE_SOURCE_DIR}/apps/example/network
+    ${CMAKE_SOURCE_DIR}/apps/example/psm
+    ${CMAKE_SOURCE_DIR}/apps/example/sockets
+    ${CMAKE_SOURCE_DIR}/apps/test
+    ${CMAKE_SOURCE_DIR}/apps/test/file
+    ${CMAKE_SOURCE_DIR}/apps/test/ftp
+    ${CMAKE_SOURCE_DIR}/apps/test/http
+    ${CMAKE_SOURCE_DIR}/apps/test/mqtt
+    ${CMAKE_SOURCE_DIR}/apps/test/network
+    ${CMAKE_SOURCE_DIR}/apps/test/psm
+    ${CMAKE_SOURCE_DIR}/apps/test/sockets
+    ${CMAKE_SOURCE_DIR}/apps/user
     ${CMAKE_SOURCE_DIR}/quectel
     ${CMAKE_SOURCE_DIR}/quectel/common/inc
-    ${CMAKE_SOURCE_DIR}/quectel/modules/bg95
-    ${CMAKE_SOURCE_DIR}/quectel/modules/ec20
+    ${CMAKE_SOURCE_DIR}/quectel/modules/inc
     ${CMAKE_SOURCE_DIR}/quectel/third_party/at_client/include
     ${CMAKE_SOURCE_DIR}/quectel/third_party/at_socket
     ${CMAKE_SOURCE_DIR}/system/include/hal

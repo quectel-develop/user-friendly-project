@@ -25,6 +25,8 @@
 #include "spi.h"
 #include "usart.h"
 #include "gpio.h"
+#include "common_hal.h"
+#include "broadcast_service.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -192,6 +194,21 @@ void Error_Handler(void)
   {
   }
   /* USER CODE END Error_Handler_Debug */
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    static uint32_t last_time = 0;
+    uint32_t now = HAL_GetTick();
+    if (now - last_time < 200)
+    {
+        return;
+    }
+    last_time = now;
+    if (UFP_SD_DET_PIN == GPIO_Pin)
+    {
+        broadcast_send_msg_myself(QL_BROADCAST_SD_CARD_DETECT, BSP_SD_IsDetected(), 0, 0);
+    }
 }
 
 #ifdef  USE_FULL_ASSERT
