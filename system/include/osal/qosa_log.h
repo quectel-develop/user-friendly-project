@@ -25,19 +25,26 @@ typedef enum
     LOG_ERROR
 } LogLevel;
 
-void debug_print(const int level, const char *msg, const char *prefix, const char *suffix, const char *file, const char *func, const int line, const char *fmt,...);
 
-// void log_message_impl(const int level, const char *msg, const char *prefix, const char *suffix, const char *file, const char *func, const int line, const char *fmt,...);
-// // 实际日志打印实现
-#ifndef __FILE_NAME__
-    #define __FILE_NAME__ (strrchr(__FILE__, '/') ? (strrchr(__FILE__, '/') + 1):__FILE__)
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN64)
+void log_message_impl(const int level, const char *msg, const char *prefix, const char *suffix, const char *file, const char *func, const int line, const char *fmt,...);
+#define log_message     log_message_impl
+#elif __linux__
+#else
+void debug_print(const int level, const char *msg, const char *prefix, const char *suffix, const char *file, const char *func, const int line, const char *fmt,...);
+#define log_message     debug_print
 #endif
-#define LOG_V( ...) debug_print(LOG_VERBOSE, "VER",   "\033[0;37m", "\033[0m\r\n", __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
-#define LOG_D( ...) debug_print(LOG_DEBUG,   "DEBUG", "\033[0;37m", "\033[0m\r\n", __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
-#define LOG_I( ...) debug_print(LOG_INFO,    "INFO",  "\033[0;34m", "\033[0m\r\n", __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
-#define LOG_H( ...) debug_print(LOG_INFO,    "INPUT", "\033[0;92m", "\033[0m",     __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
-#define LOG_W( ...) debug_print(LOG_WARN,    "WARN",  "\033[0;33m", "\033[0m\r\n", __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
-#define LOG_E( ...) debug_print(LOG_ERROR,   "ERR",   "\033[0;31m", "\033[0m\r\n", __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
+
+#ifndef __FILE_NAME__
+#define __FILE_NAME__ (strrchr(__FILE__, '/') ? (strrchr(__FILE__, '/') + 1):__FILE__)
+#endif
+#define LOG_V( ...) log_message(LOG_VERBOSE, "VER",   "\033[0;37m", "\033[0m\r\n", __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define LOG_D( ...) log_message(LOG_DEBUG,   "DEBUG", "\033[0;37m", "\033[0m\r\n", __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define LOG_I( ...) log_message(LOG_INFO,    "INFO",  "\033[0;34m", "\033[0m\r\n", __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define LOG_H( ...) log_message(LOG_INFO,    "INPUT", "\033[0;92m", "\033[0m",     __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define LOG_W( ...) log_message(LOG_WARN,    "WARN",  "\033[0;33m", "\033[0m\r\n", __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define LOG_E( ...) log_message(LOG_ERROR,   "ERR",   "\033[0;31m", "\033[0m\r\n", __FILE_NAME__, __FUNCTION__, __LINE__, __VA_ARGS__)
+
 
 
 /**

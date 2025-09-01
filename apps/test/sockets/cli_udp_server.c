@@ -1,14 +1,16 @@
 #include "QuectelConfig.h"
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_CLI_TEST__
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET_UDP_SERVER__
-#include "cli_tcp_server.h"
-#include "at_socket.h"
+#include "cli_udp_server.h"
+#include "ql_socket.h"
 #include "qosa_log.h"
 
+extern void at_print_raw_cmd(const char *type, const char *cmd, size_t size);
 int cli_udp_server_test(short sin_port, char *sin_addr, int loop_count, int loop_interval)
 {
-    int ser_sock_fd, ret, addr_len = sizeof(struct sockaddr_in);
-    char buf[1024] = "hello";
+    int ser_sock_fd, ret;
+    socklen_t addr_len = sizeof(struct sockaddr_in);
+    char buf[128] = "hello";
     struct sockaddr_in ser_sock_addr, cli_sock_addr;
 
     LOG_V("%s Start",__FUNCTION__);
@@ -29,6 +31,7 @@ int cli_udp_server_test(short sin_port, char *sin_addr, int loop_count, int loop
     if(ret == -1)
     {
         LOG_E("Server bind failure");
+        close(ser_sock_fd);
         return -1;
     }
     LOG_I("Server bind success");
@@ -37,22 +40,25 @@ int cli_udp_server_test(short sin_port, char *sin_addr, int loop_count, int loop
     for (int i=0; i<loop_count; i++)
     {
         memset(buf,0,64);
-        ret = recvfrom(ser_sock_fd,buf,64,0,(struct sockaddr *)&cli_sock_addr,sizeof(cli_sock_addr));
-        if (0 < ret)
-            LOG_I("Udp server recv %s ok, ret = %d, fd = %d (from:%s, %d)", buf, ret, ser_sock_fd, inet_ntoa(cli_sock_addr.sin_addr.s_addr), cli_sock_addr.sin_port);
-
+        ret = recvfrom(ser_sock_fd,buf,64,0,(struct sockaddr *)&cli_sock_addr, &addr_len);
+        if (ret > 0)
+        {
+            at_print_raw_cmd("udp server recv data", buf, ret);
+            LOG_I("Udp server recv len = %d, fd = %d (from:%s, %d)", ret, ser_sock_fd, inet_ntoa(cli_sock_addr.sin_addr.s_addr), ntohs(cli_sock_addr.sin_port));
+         }
         else
             LOG_E("Udp server recv %s err", buf);
 
-        ret = sendto(ser_sock_fd,buf,strlen(buf),0,(struct sockaddr *)&cli_sock_addr,sizeof(cli_sock_addr));
+        ret = sendto(ser_sock_fd,buf,strlen(buf),0,(struct sockaddr *)&cli_sock_addr, addr_len);
         if (ret > 0)
-            LOG_I("Udp server send %s ok, ret = %d, fd = %d (to:%s, %d)", buf, ret, ser_sock_fd, inet_ntoa(cli_sock_addr.sin_addr.s_addr), cli_sock_addr.sin_port);
-        else
-            LOG_E("Udp server send %s err(to:%s, %d)", buf, inet_ntoa(cli_sock_addr.sin_addr.s_addr), cli_sock_addr.sin_port);
-
-        qosa_task_sleep_ms(loop_interval);
+        {
+            at_print_raw_cmd("udp server send data", buf, ret);
+            LOG_I("Udp server send ok, len = %d, fd = %d (to:%s, %d)",ret, ser_sock_fd, inet_ntoa(cli_sock_addr.sin_addr.s_addr), ntohs(cli_sock_addr.sin_port));
+        }
+         else
+            LOG_E("Udp server send err(to:%s, %d)", inet_ntoa(cli_sock_addr.sin_addr.s_addr), ntohs(cli_sock_addr.sin_port));
     }
-    closesocket(ser_sock_fd);
+    close(ser_sock_fd);
 
     LOG_D("%s over",__FUNCTION__);
 

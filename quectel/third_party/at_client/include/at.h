@@ -140,12 +140,12 @@ at_client_t at_client_get(void);
 at_client_t at_client_get_first(void);
 
 /* AT client wait for connection to external devices. */
-int at_client_obj_wait_connect(at_client_t client, u32_t timeout);
 
 /* AT client send or receive data */
 size_t at_client_obj_send(at_client_t client, const char *buf, size_t size, bool print);
+size_t at_client_obj_send_nolock(at_client_t client, const char *buf, size_t size, bool print);
 size_t at_client_obj_recv(at_client_t client, char *buf, size_t size, int32_t timeout, bool print);
-size_t at_client_self_recv(at_client_t client, char *buf, size_t size, int32_t timeout,u8_t mode);
+size_t at_client_self_recv(at_client_t client, char *buf, size_t size, int32_t timeout,u8_t mode, bool print);
 /* set AT client a line end sign */
 void at_obj_set_end_sign(at_client_t client, char ch);
 
@@ -180,7 +180,6 @@ int at_resp_parse_line_args_by_kw(at_response_t resp, const char *keyword, const
  */
 
 #define at_exec_cmd(resp, ...)                   at_obj_exec_cmd(at_client_get_first(), resp, __VA_ARGS__)
-#define at_client_wait_connect(timeout)          at_client_obj_wait_connect(at_client_get_first(), timeout)
 #define at_client_send(buf, size)                at_client_obj_send(at_client_get_first(), buf, size, true)
 #define at_client_recv(buf, size, timeout)       at_client_obj_recv(at_client_get_first(), buf, size, timeout, true)
 #define at_self_recv(buf, size, timeout,mode)           at_client_self_recv(at_client_get_first(), buf, size, timeout,mode)

@@ -1,982 +1,707 @@
 #include "QuectelConfig.h"
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET__
-#include <at.h>
-#include "at_socket.h"
-#include "ql_socket.h"
-#include "ql_net.h"
-#include "debug_service.h"
-#include "broadcast_service.h"
-#include "at_socket_device.h"
-#include "qosa_def.h"
 #include "qosa_log.h"
+#include "qosa_utils.h"
+#include "ql_socket.h"
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN64)
-#include "windows.h"
-#elif __linux__
-#else
-#include "cmsis_os.h"
-#endif
-
-
-static osa_msgq_t g_socket_msg_id = NULL;
-static osa_task_t g_socket_thread_id =NULL;
-
-
-/* set real event by current socket and current state */
-#define SET_EVENT(socket, event)       (((socket + 1) << 16) | (event))
-
-/* AT socket event type */
-#define QL_EVENT_CONN_OK             (1L << 0)
-#define QL_EVENT_SEND_OK             (1L << 1)
-#define QL_EVENT_RECV_OK             (1L << 2)
-#define QL_EVNET_CLOSE_OK            (1L << 3)
-#define QL_EVENT_CONN_FAIL           (1L << 4)
-#define QL_EVENT_SEND_FAIL           (1L << 5)
-#define QL_EVENT_DOMAIN_OK           (1L << 6)
-#define QL_EVENT_INCOMING_OK         (1L << 7)
-
-static at_evt_cb_t at_evt_cb_set[] = {
-        [AT_SOCKET_EVT_RECV] = NULL,
-        [AT_SOCKET_EVT_CLOSED] = NULL,
-};
-
-static void at_tcp_ip_errcode_parse(int result)//TCP/IP_QIGETERROR
+#define SOCKET_MAX_FD 12
+#define ONE_PKT_MAX_LENGTH 1024
+static bool s_global_socket_init = false;
+static osa_mutex_t s_fd_lock = NULL; // never delete
+static osa_sem_t s_fd_sem = NULL;
+typedef struct ql_socket_instance
 {
-    LOG_V("%s, %d",__FUNCTION__, result);
+    ql_socket_t handle;
+    bool used;
+} ql_socket_instance_s;
 
-    switch(result)
+static ql_socket_instance_s s_socket_indices[SOCKET_MAX_FD] = {0};
+
+/*
+* @brief find vaild fd, then bind fd to handle
+* if fd vaild,used fd, otherwise auto find a free fd
+*/
+static int ql_socket_take_vaild_fd(ql_socket_t handle, int fd)
+{
+    qosa_mutex_lock(s_fd_lock, QOSA_WAIT_FOREVER);
+    if (fd >= 0 && fd < SOCKET_MAX_FD)
     {
-    case 0   : LOG_D("%d : Operation successful",         result); break;
-    case 550 : LOG_E("%d : Unknown error",                result); break;
-    case 551 : LOG_E("%d : Operation blocked",            result); break;
-    case 552 : LOG_E("%d : Invalid parameters",           result); break;
-    case 553 : LOG_E("%d : Memory not enough",            result); break;
-    case 554 : LOG_E("%d : Create socket failed",         result); break;
-    case 555 : LOG_E("%d : Operation not supported",      result); break;
-    case 556 : LOG_E("%d : Socket bind failed",           result); break;
-    case 557 : LOG_E("%d : Socket listen failed",         result); break;
-    case 558 : LOG_E("%d : Socket write failed",          result); break;
-    case 559 : LOG_E("%d : Socket read failed",           result); break;
-    case 560 : LOG_E("%d : Socket accept failed",         result); break;
-    case 561 : LOG_E("%d : Open PDP context failed",      result); break;
-    case 562 : LOG_E("%d : Close PDP context failed",     result); break;
-    case 563 : LOG_W("%d : Socket identity has been used", result); break;
-    case 564 : LOG_E("%d : DNS busy",                     result); break;
-    case 565 : LOG_E("%d : DNS parse failed",             result); break;
-    case 566 : LOG_E("%d : Socket connect failed",        result); break;
-    // case 567 : LOG_W("%d : Socket has been closed",       result); break;
-    case 567 : break;
-    case 568 : LOG_E("%d : Operation busy",               result); break;
-    case 569 : LOG_E("%d : Operation timeout",            result); break;
-    case 570 : LOG_E("%d : PDP context broken down",      result); break;
-    case 571 : LOG_E("%d : Cancel send",                  result); break;
-    case 572 : LOG_E("%d : Operation not allowed",        result); break;
-    case 573 : LOG_E("%d : APN not configured",           result); break;
-    case 574 : LOG_E("%d : Port busy",                    result); break;
-    default  : LOG_E("%d : Unknown err code",             result); break;
+        if (s_socket_indices[fd].used) // means user created this socket, but not used yet
+        {
+            LOG_W("fd already used.");
+            ql_close(fd);
+        }
+        s_socket_indices[fd].used = true;
+        s_socket_indices[fd].handle = handle;
+        qosa_mutex_unlock(s_fd_lock);
+        return fd;
     }
-}
-
-static int ql_socket_event_send(struct at_device *device, u32_t event)
-{
-    LOG_V("%s, 0x%x",__FUNCTION__, event);
-    return (int) qosa_event_send(device->socket_event, event);
-}
-
-static int ql_socket_event_recv(struct at_device *device, u32_t event, u32_t timeout, u8_t option)
-{
-    u32_t recved;
-
-    LOG_V("%s, event = 0x%x, timeout = %d, option = %d",__FUNCTION__, event, timeout, option);
-
-    recved = qosa_event_recv(device->socket_event, event, option, timeout);
-    if (recved < 0)
+    for (int i = 0; i < SOCKET_MAX_FD; i++)
     {
-        return -QOSA_ERROR_TIMEOUT;
+        if (!s_socket_indices[i].used)
+        {
+            s_socket_indices[i].used = true; // Mark as used
+            s_socket_indices[i].handle = handle;
+            qosa_mutex_unlock(s_fd_lock);
+            return i; // Return first available index
+        }
     }
-
-    return recved;
+    qosa_mutex_unlock(s_fd_lock);
+    return -1;
 }
 
+static void ql_socket_release_fd(int fd)
+{
+    qosa_mutex_lock(s_fd_lock, QOSA_WAIT_FOREVER);
+    if (fd >= 0 && fd < SOCKET_MAX_FD)
+    {
+        s_socket_indices[fd].used = false;
+    }
+    qosa_mutex_unlock(s_fd_lock);
+}
 /**
- * close socket by AT commands.
- *
- * @param current socket
- *
- * @return  0: close socket success
- *         -1: send AT commands error
- *         -2: wait socket event timeout
- *         -5: no memory
+ * @brief find handle by index
+ * @param fd index
+ * @return success handle，otherwise NULL
  */
-static int ql_socket_at_closesocket(struct at_socket *socket)
+static ql_socket_t ql_socket_find_handle_by_fd(int fd)
 {
-    int result = QOSA_OK;
-    at_response_t resp = QOSA_NULL;
-    int device_socket = (int) socket->user_data;
-    struct at_device *device = (struct at_device *) socket->device;
-
-    LOG_V("%s",__FUNCTION__);
-
-    resp = at_create_resp(64, 0, 10 * RT_TICK_PER_SECOND);
-    if (resp == QOSA_NULL)
+    qosa_mutex_lock(s_fd_lock, QOSA_WAIT_FOREVER);
+    if (fd >= 0 && fd < SOCKET_MAX_FD &&
+        s_socket_indices[fd].used)
     {
-        LOG_E("no memory for resp create.");
-        return QOSA_ERROR_NO_MEMORY;
+        qosa_mutex_unlock(s_fd_lock);
+        return s_socket_indices[fd].handle;
     }
-
-    /* default connection timeout is 10 seconds, but it set to 1 seconds is convenient to use.*/
-    result = at_obj_exec_cmd(device->client, resp, "AT+QICLOSE=%d,1", device_socket);
-
-    if (resp)
-    {
-        at_delete_resp(resp);
-    }
-
-    return result;
+    qosa_mutex_unlock(s_fd_lock);
+    LOG_E("can not find handle by fd %d", fd);
+    return NULL;
 }
 
-/**
- * create TCP/UDP client or server connect by AT commands.
- *
- * @param socket current socket
- * @param ip server or client IP address
- * @param port server or client port
- * @param type connect socket type(tcp, udp)
- * @param is_client connection is client
- *
- * @return   0: connect success
- *          -1: connect failed, send commands error or type error
- *          -2: wait socket event timeout
- *          -5: no memory
- */
-static int ql_socket_at_connect(struct at_socket *socket, char *ip, int32_t port, enum at_socket_type type, qosa_bool_t is_client)
+static void ql_socket_pkt_put(ql_socket_t handle, ql_socket_pkt_t pkt)
 {
-    u32_t event = 0;
-    qosa_bool_t retryed = QOSA_FALSE;
-    at_response_t resp = QOSA_NULL;
-    int result = 0, event_result = 0;
-    int device_socket = (int) socket->user_data;
-    struct at_device *device = (struct at_device *) socket->device;
-
-    LOG_V("%s, ip = %s, port = %d, type = %d, is_client = %d", __FUNCTION__, ip, port, type, is_client);
-
-    QOSA_ASSERT(port >= 0);
-    resp = at_create_resp(128, 0, 150 * RT_TICK_PER_SECOND);
-    if (resp == QOSA_NULL)
+    if (NULL == handle->pkt_head)
     {
-        LOG_E("no memory for resp create.");
-        return QOSA_ERROR_NO_MEMORY;
+        handle->pkt_head = pkt;
+        return;
     }
-__retry:
-    /* clear socket connect event */
-    event = SET_EVENT(device_socket, QL_EVENT_CONN_OK | QL_EVENT_CONN_FAIL);
-    ql_socket_event_recv(device, event, 0, QOSA_EVENT_FLAG_OR);
-    if (is_client)
+    ql_socket_pkt_t last = handle->pkt_head;
+    while (last->next != NULL)
     {
-        switch (type)
-        {
-        case AT_SOCKET_TCP:
-            /* send AT commands(AT+QIOPEN=<contextID>,<socket>,"<TCP/UDP>","<IP_address>/<domain_name>", */
-            /* <remote_port>,<local_port>,<access_mode>) to connect TCP server */
-            /* contextID   = 1 : use same contextID as AT+QICSGP & AT+QIACT */
-            /* local_port  = 0 : local port assigned automatically */
-            /* access_mode = 1 : Direct push mode */
-            if (at_obj_exec_cmd(device->client, resp,
-                                "AT+QIOPEN=1,%d,\"TCP\",\"%s\",%d,0,1", device_socket, ip, port) < 0)
-            {
-                result = -QOSA_ERROR_GENERAL;
-                goto __exit;
-            }
-            break;
-
-        case AT_SOCKET_UDP:
-            if (at_obj_exec_cmd(device->client, resp,
-                                "AT+QIOPEN=1,%d,\"UDP\",\"%s\",%d,0,1", device_socket, ip, port) < 0)
-            {
-                result = -QOSA_ERROR_GENERAL;
-                goto __exit;
-            }
-            break;
-
-        default:
-            LOG_E("not supported connect type : %d.", type);
-            return -QOSA_ERROR_GENERAL;
-        }
+        last = last->next;
     }
-    else /* TCP/UDP Server*/
-    {
-        switch (type)
-        {
-        case AT_SOCKET_TCP:
-            /* send AT commands(AT+QIOPEN=<contextID>,<socket>,"<TCP/UDP>","<IP_address>/<domain_name>", */
-            /* <remote_port>,<local_port>,<access_mode>) to connect TCP server */
-            /* contextID   = 1 : use same contextID as AT+QICSGP & AT+QIACT */
-            /* local_port  = 0 : local port assigned automatically */
-            /* access_mode = 1 : Direct push mode */
-            if (at_obj_exec_cmd(device->client, resp,
-                                "AT+QIOPEN=1,%d,\"TCP LISTENER\",\"127.0.0.1\",0,%d,1", device_socket, port) < 0)
-            {
-                result = -QOSA_ERROR_GENERAL;
-                goto __exit;
-            }
-            break;
-
-        case AT_SOCKET_UDP:
-            if (at_obj_exec_cmd(device->client, resp,
-                                "AT+QIOPEN=1,%d,\"UDP SERVICE\",\"127.0.0.1\",0,%d,1", device_socket, port) < 0)
-            {
-                result = -QOSA_ERROR_GENERAL;
-                goto __exit;
-            }
-            break;
-
-        default:
-            LOG_E("not supported connect type : %d.", type);
-            return -QOSA_ERROR_GENERAL;
-        }
-
-    }
-
-    /* waiting result event from AT URC, the device default connection timeout is 75 seconds, but it set to 10 seconds is convenient to use.*/
-    if (ql_socket_event_recv(device, SET_EVENT(device_socket, 0), 150 * RT_TICK_PER_SECOND, QOSA_EVENT_FLAG_OR|QOSA_EVENT_FLAG_NO_CLEAR) < 0)
-    {
-        LOG_E("device socket(%d) wait connect result timeout.", device_socket);
-        result = -QOSA_ERROR_TIMEOUT;
-        goto __exit;
-    }
-    /* waiting OK or failed result */
-    event_result = ql_socket_event_recv(device, QL_EVENT_CONN_OK | QL_EVENT_CONN_FAIL, 1 * RT_TICK_PER_SECOND, QOSA_EVENT_FLAG_OR);
-    if (event_result < 0)
-    {
-        LOG_E("device socket(%d) wait connect OK|FAIL timeout.", device_socket);
-        result = -QOSA_ERROR_TIMEOUT;
-        goto __exit;
-    }
-    /* check result */
-    if (event_result & QL_EVENT_CONN_FAIL)
-    {
-        if (retryed == QOSA_FALSE)
-        {
-            LOG_D("device socket(%d) connect failed, the socket was not be closed and now will connect retey.",
-                    device_socket);
-            /* default connection timeout is 10 seconds, but it set to 1 seconds is convenient to use.*/
-            if (ql_socket_at_closesocket(socket) < 0)
-            {
-                result = -QOSA_ERROR_GENERAL;
-                goto __exit;
-            }
-            retryed = QOSA_TRUE;
-            goto __retry;
-        }
-        LOG_E("device socket(%d) connect failed.", device_socket);
-        result = -QOSA_ERROR_GENERAL;
-        goto __exit;
-    }
-__exit:
-    if (resp)
-    {
-        at_delete_resp(resp);
-    }
-    LOG_V("%s over", __FUNCTION__);
-
-    return result;
+    last->next = pkt;
 }
 
-// static int ql_socket_at_socket(struct at_device *device, enum at_socket_type type)
-// {
-
-//     LOG_V("%s at_socket_type = %d",__FUNCTION__, type);
-// }
-
-static int at_get_send_size(struct at_socket *socket, size_t *size, size_t *acked, size_t *nacked)
+static ql_socket_pkt_t ql_socket_pkt_get(ql_socket_t handle)
 {
-    int result = 0;
-    at_response_t resp = QOSA_NULL;
-    int device_socket = (int) socket->user_data;
-    struct at_device *device = (struct at_device *) socket->device;
-
-    LOG_V("%s",__FUNCTION__);
-
-    resp = at_create_resp(128, 0, 5 * RT_TICK_PER_SECOND);
-    if (resp == QOSA_NULL)
-    {
-        LOG_E("no memory for resp create.");
-        result = QOSA_ERROR_NO_MEMORY;
-        goto __exit;
-    }
-
-    if (at_obj_exec_cmd(device->client, resp, "AT+QISEND=%d,0", device_socket) < 0)
-    {
-        result = -QOSA_ERROR_GENERAL;
-        goto __exit;
-    }
-
-    if (at_resp_parse_line_args_by_kw(resp, "+QISEND:", "+QISEND: %d,%d,%d", size, acked, nacked) <= 0)
-    {
-        result = -QOSA_ERROR_GENERAL;
-        goto __exit;
-    }
-
-__exit:
-    if (resp)
-    {
-        at_delete_resp(resp);
-    }
-    LOG_V("%s over", __FUNCTION__);
-
-    return result;
+    return handle->pkt_head;
 }
 
-static int at_wait_send_finish(struct at_socket *socket, size_t settings_size)
+static void ql_socket_pkt_delete_head(ql_socket_t handle)
 {
-    /* get the timeout by the input data size */
-    u32_t timeout = settings_size;
-    u32_t last_time = qosa_get_uptime_milliseconds();
-    size_t size = 0, acked = 0, nacked = 0xFFFF;
+    ql_socket_pkt_t tmp = handle->pkt_head;
+    if (tmp != NULL)
+        handle->pkt_head = tmp->next;
 
-    LOG_V("%s, settings_size = %d",__FUNCTION__, settings_size);
-
-    while (qosa_get_uptime_milliseconds() - last_time <= timeout)
-    {
-        at_get_send_size(socket, &size, &acked, &nacked);
-        if (nacked == 0)
-        {
-            return QOSA_OK;
-        }
-        qosa_task_sleep_ms(50);
-    }
-
-    return -QOSA_ERROR_TIMEOUT;
+    if (tmp->data != NULL)
+        free(tmp->data);
+    if (tmp != NULL)
+        free(tmp);
 }
 
-/**
- * send data to server or client by AT commands.
- *
- * @param socket current socket
- * @param buff send buffer
- * @param bfsz send buffer size
- * @param type connect socket type(tcp, udp)
- *
- * @return >=0: the size of send success
- *          -1: send AT commands error or send data error
- *          -2: waited socket event timeout
- *          -5: no memory
- */
-static int ql_socket_at_send(struct at_socket *socket, const char *buff, size_t bfsz, char *ip, int32_t port, enum at_socket_type type, qosa_bool_t is_client)
+static void ql_socket_pkt_delete_all(ql_socket_t handle)
 {
-    int device_socket = (int) socket->user_data;
-    struct at_device *device = (struct at_device *) socket->device;
-
-    LOG_V("%s, buff = %s, bfsz = %d, type = %d", __FUNCTION__, buff, bfsz, type);
-
-    char cmd[128] = {0};
-    if ((type == AT_SOCKET_UDP) && !is_client)
+    while (handle->pkt_head != NULL)
     {
-        snprintf(cmd, sizeof(cmd), "AT+QISEND=%d,%%d,%s,%d", device_socket, ip, port);
-    }
-    else
-    {
-        snprintf(cmd, sizeof(cmd), "AT+QISEND=%d,%%d", device_socket);
-    }
-    return at_obj_exec_cmd_with_data(device->client, cmd, buff, bfsz);
-}
-
-/**
- * domain resolve by AT commands.
- *
- * @param name domain name
- * @param ip parsed IP address, it's length must be 16
- *
- * @return  0: domain resolve success
- *         -1: send AT commands error or response error
- *         -2: wait socket event timeout
- *         -5: no memory
- */
-static int ql_socket_at_domain_resolve(const char *name, char ip[16])
-{
-#define RESOLVE_RETRY                  3
-
-    int i, result;
-    at_response_t resp = QOSA_NULL;
-    struct at_device *device = QOSA_NULL;
-
-    LOG_V("%s, name = %s", __FUNCTION__, name);
-
-    QOSA_ASSERT(name);
-    QOSA_ASSERT(ip);
-
-    device = at_device_get();
-    if (device == QOSA_NULL)
-    {
-        LOG_E("get first init device failed.");
-        return -QOSA_ERROR_GENERAL;
-    }
-
-    /* the maximum response time is 60 seconds, but it set to 10 seconds is convenient to use. */
-    resp = at_create_resp(128, 0, 10 * RT_TICK_PER_SECOND);
-    if (!resp)
-    {
-        LOG_E("no memory for resp create.");
-        return QOSA_ERROR_NO_MEMORY;
-    }
-
-    /* clear QL_EVENT_DOMAIN_OK */
-    ql_socket_event_recv(device, QL_EVENT_DOMAIN_OK, 0, QOSA_EVENT_FLAG_OR);
-
-    result = at_obj_exec_cmd(device->client, resp, "AT+QIDNSGIP=1,\"%s\"", name);
-    if (result < 0)
-    {
-        goto __exit;
-    }
-
-    if (result == QOSA_OK)
-    {
-        for(i = 0; i < RESOLVE_RETRY; i++)
-        {
-            /* waiting result event from AT URC, the device default connection timeout is 60 seconds.*/
-            if (ql_socket_event_recv(device, QL_EVENT_DOMAIN_OK, 10 * RT_TICK_PER_SECOND, QOSA_EVENT_FLAG_OR) < 0)
-            {
-                continue;
-            }
-            else
-            {
-                struct at_device_data *module = (struct at_device_data *) device->user_data;
-                char *recv_ip = (char *) module->socket_data;
-
-                if (strlen(recv_ip) < 8)
-                {
-                    qosa_task_sleep_ms(100);
-                    /* resolve failed, maybe receive an URC CRLF */
-                    result = -QOSA_ERROR_GENERAL;
-                    continue;
-                }
-                else
-                {
-                    strncpy(ip, recv_ip, 15);
-                    ip[15] = '\0';
-                    result = QOSA_OK;
-                    break;
-                }
-            }
-        }
-
-        /* response timeout */
-        if (i == RESOLVE_RETRY)
-        {
-            result = QOSA_ERROR_NO_MEMORY;
-        }
-    }
-
- __exit:
-    if (resp)
-    {
-        at_delete_resp(resp);
-    }
-
-    return result;
-
-}
-
-/**
- * set AT socket event notice callback
- *
- * @param event notice event
- * @param cb notice callback
- */
-static void ql_socket_at_set_event_cb(at_socket_evt_t event, at_evt_cb_t cb)
-{
-    LOG_V("%s, event = %d",__FUNCTION__, event);
-
-    if (event < sizeof(at_evt_cb_set) / sizeof(at_evt_cb_set[1]))
-    {
-        at_evt_cb_set[event] = cb;
+        ql_socket_pkt_delete_head(handle);
     }
 }
 
-static int ql_get_socket_num(struct at_device *device, int device_socket)
+static ql_socket_t ql_socket_alloc(int fd)
 {
-    int i;
-    struct at_socket *socket = QOSA_NULL;
-
-    LOG_V("%s",__FUNCTION__);
-
-    QOSA_ASSERT(device);
-
-    for (i=0; i<device->socket_num; i++)
+    ql_socket_t handle = (ql_socket_t)malloc(sizeof(ql_socket_s));
+    if (NULL == handle)
     {
-        if ((int)device->sockets[i].user_data == device_socket)
-            break;
+        LOG_E("no memory for socket handle.");
+        return NULL;
     }
-
-    QOSA_ASSERT(i!=device->socket_num);
-
-    return i;
+    handle->client = at_client_get_first();
+    handle->fd = ql_socket_take_vaild_fd(handle, fd);
+    if (handle->fd < 0 || handle->fd > SOCKET_MAX_FD)
+    {
+        LOG_E("no available socket fd.");
+        free(handle);
+        return NULL;
+    }
+    handle->err = QL_SOCKET_OK;
+    handle->pkt_head = NULL;
+    handle->timeout = QOSA_WAIT_FOREVER;
+    qosa_sem_create(&handle->sem, 0);
+    qosa_mutex_create(&handle->lock);
+    return handle;
 }
 
-static void urc_connect_func(struct at_client *client, const char *data, s32_t size)
+static void ql_socket_urc_close(struct at_client *client, const char *data, s32_t size, void *arg)
 {
-    int device_socket = 0, result = 0;
-    struct at_device *device = QOSA_NULL;
-
+    int fd = -1;
     QOSA_ASSERT(data && size);
 
-    LOG_V("%s, size = %d",__FUNCTION__, size);
-
-    device = at_device_get();
-    if (device == QOSA_NULL)
-    {
-        LOG_E("get device failed.");
+    sscanf(data, "+QIURC: \"closed\",%d", &fd);
+    ql_socket_t handle = ql_socket_find_handle_by_fd(fd);
+    if (NULL == handle)
         return;
-    }
-
-    sscanf(data, "+QIOPEN: %d,%d", &device_socket , &result);
-
-    if (result == 0)
-    {
-        ql_socket_event_send(device, SET_EVENT(device_socket, QL_EVENT_CONN_OK));
-    }
-    else
-    {
-        at_tcp_ip_errcode_parse(result);
-        ql_socket_event_send(device, SET_EVENT(device_socket, QL_EVENT_CONN_FAIL));
-    }
+    handle->state = QL_SOCKET_CLOSING;
+    qosa_sem_release(handle->sem);
+    qosa_sem_release(s_fd_sem);
 }
 
-static void urc_close_func(struct at_client *client, const char *data, s32_t size)
+static void ql_socket_urc_recv(struct at_client *client, const char *data, s32_t size, void *arg)
 {
-    int device_socket = 0;
-    struct at_socket *socket = QOSA_NULL;
-    struct at_device *device = QOSA_NULL;
-
-    LOG_V("%s, size = %d",__FUNCTION__, size);
-
-    QOSA_ASSERT(data && size);
-
-    device = at_device_get();
-    if (device == QOSA_NULL)
-    {
-        LOG_E("get device failed.");
-        return;
-    }
-
-    sscanf(data, "+QIURC: \"closed\",%d", &device_socket);
-    /* get at socket object by device socket descriptor */
-    socket = &(device->sockets[ql_get_socket_num(device, device_socket)]);
-    /* notice the socket is disconnect by remote */
-    if (at_evt_cb_set[AT_SOCKET_EVT_CLOSED])
-    {
-        at_evt_cb_set[AT_SOCKET_EVT_CLOSED](socket, AT_SOCKET_EVT_CLOSED, NULL, 0, 0);
-    }
-}
-
-static void urc_recv_func(struct at_client *client, const char *data, s32_t size)
-{
-    int device_socket = 0, i = 0, j = 0;
-    s32_t timeout;
-    s32_t bfsz = 0, temp_size = 0;
-    char *recv_buf = QOSA_NULL, temp[8] = {0};
-    struct at_socket *socket = QOSA_NULL;
-    struct at_device *device = QOSA_NULL;
-    char recv_ip[16] = {0}, *p = QOSA_NULL;
-    at_socket_addr at_socket_info;
-
-    LOG_V("%s, size = %d",__FUNCTION__, size);
-
-    QOSA_ASSERT(data && size);
-    memset(&at_socket_info, 0, sizeof(at_socket_addr));
-
-    device = at_device_get();
-    if (device == QOSA_NULL)
-    {
-        LOG_E("get device failed.");
-        return;
-    }
-
-    for (i = 0; i < size; i++)
-    {
-        if (*(data + i) == '.')
-            j++;
-    }
-
-    if (j == 3)
-    {
-        /* get the current socket and receive buffer size by receive data */
-        sscanf(data, "+QIURC: \"recv\",%d,%d,\"%[^\"]\"", &device_socket, (int *) &bfsz, recv_ip);
-        recv_ip[15] = '\0';
-        p = strrchr(data, ',');
-        p++;
-        at_socket_info.addr.port = atoi(p);
-        at_socket_info.addr.sin_addr = inet_addr(recv_ip); //ip
-        LOG_V("incoming:%d, %d, %s, %d", device_socket, bfsz, recv_ip, at_socket_info.addr.port);
-    }
-    else
-    {
-        /* get the current socket and receive buffer size by receive data */
-        sscanf(data, "+QIURC: \"recv\",%d,%d", &device_socket, (int *) &bfsz);
-    }
-
-    /* set receive timeout by receive buffer length, not less than 10 ms */
-    timeout = bfsz > 10 ? bfsz : 10;
-    if (device_socket < 0 || bfsz == 0)
-    {
-        return;
-    }
-
-    recv_buf = (char *) calloc(1, bfsz);
-    if (recv_buf == QOSA_NULL)
-    {
-        LOG_E("no memory for URC receive buffer(%d).", bfsz);
-        /* read and clean the coming data */
-        while (temp_size < bfsz)
-        {
-            if (bfsz - temp_size > sizeof(temp))
-            {
-                at_client_obj_recv(client, temp, sizeof(temp), timeout, true);
-            }
-            else
-            {
-                at_client_obj_recv(client, temp, bfsz - temp_size, timeout, true);
-            }
-            temp_size += sizeof(temp);
-        }
-        return;
-    }
-    /* sync receive data */
-    if (at_client_obj_recv(client, recv_buf, bfsz, timeout, true) != bfsz)
-    {
-        LOG_E("device receive size(%d) data failed.", bfsz);
-        free(recv_buf);
-        return;
-    }
-
-    /* get at socket object by device socket descriptor */
-    socket = &(device->sockets[ql_get_socket_num(device, device_socket)]);
-
-    /* notice the receive buffer and buffer size */
-    if (at_evt_cb_set[AT_SOCKET_EVT_RECV])
-    {
-        at_evt_cb_set[AT_SOCKET_EVT_RECV](socket, AT_SOCKET_EVT_RECV, recv_buf, bfsz, at_socket_info.data);
-    }
-}
-
-static void urc_pdpdeact_func(struct at_client *client, const char *data, s32_t size)
-{
-    int connectID = 0;
-
-    LOG_V("%s, size = %d",__FUNCTION__, size);
-
-    QOSA_ASSERT(data && size);
-
-    sscanf(data, "+QIURC: \"pdpdeact\",%d", &connectID);
-
-    LOG_E("context (%d) is deactivated.", connectID);
-}
-
-static void urc_incoming_func(struct at_client *client, const char *data, s32_t size)
-{
-    int i = 0, j = 0;
-    char recv_ip[16] = {0},*p =NULL;
-    int result, ip_count, dns_ttl;
-    struct at_device *device = QOSA_NULL;
-    struct at_device_data *module = QOSA_NULL;
-    struct at_socket *socket = QOSA_NULL;
-    struct at_incoming_info *incoming_info = NULL;
-
-    LOG_V("%s, size = %d",__FUNCTION__, size);
-
-    QOSA_ASSERT(data && size);
-
-    device = at_device_get();
-    if (device == QOSA_NULL)
-    {
-        LOG_E("get device failed.");
-        return;
-    }
-    module = (struct at_device_data *) device->user_data;
-
-    for (i = 0; i < size; i++)
-    {
-        if (*(data + i) == '.')
-            j++;
-    }
-
-    if (j == 3)
-    {
-        incoming_info = (char *) calloc(1, sizeof(struct at_incoming_info));
-        if (incoming_info == QOSA_NULL)
-        {
-            LOG_E("no memory for incoming URC receive buffer(%d).", sizeof(struct at_incoming_info));
-            return;
-        }
-        //sscanf(data, "+QIURC: \"incoming\",%d,%d,\"%[^\"]\",%d", &incoming_info->socket, &incoming_info->device_socket, incoming_info->ip, &incoming_info->port);
-        sscanf(data, "+QIURC: \"incoming\",%d,%d,\"%[^\"]\"", &incoming_info->socket, &incoming_info->device_socket, recv_ip);
-        recv_ip[15] = '\0';
-        p = strrchr(data, ',');
-        p++;
-        incoming_info->socket_addr.addr.port = atoi(p);
-        incoming_info->socket_addr.addr.sin_addr = inet_addr(recv_ip);
-
-        if (incoming_info->socket < 0 || incoming_info->device_socket < 0)
-        {
-            return;
-        }
-
-        /* get at socket object by device socket descriptor */
-        socket = &(device->sockets[ql_get_socket_num(device, incoming_info->device_socket)]);
-        LOG_I("socket = %d, device_socket = %d, ip = %s, port = %d", incoming_info->socket, incoming_info->device_socket, recv_ip, incoming_info->socket_addr.addr.port);
-
-        /* notice the receive buffer and buffer size */
-        if (at_evt_cb_set[AT_SOCKET_EVT_RECV])
-        {
-            at_evt_cb_set[AT_SOCKET_EVT_RECV](socket, AT_SOCKET_EVT_RECV, incoming_info, sizeof(struct at_incoming_info), 0);
-        }
-    }
-}
-
-static void urc_dnsqip_func(struct at_client *client, const char *data, s32_t size)
-{
-    int i = 0, j = 0;
+    int fd = -1;
+    int dot_count = 0;
     char recv_ip[16] = {0};
-    int result, ip_count, dns_ttl;
-    struct at_device *device = QOSA_NULL;
-    struct at_device_data *module = QOSA_NULL;
-
-    LOG_V("%s, size = %d",__FUNCTION__, size);
-
-    QOSA_ASSERT(data && size);
-
-    device = at_device_get();
-    if (device == QOSA_NULL)
-    {
-        LOG_E("get device failed.");
-        return;
-    }
-    module = (struct at_device_data *) device->user_data;
-
-    for (i = 0; i < size; i++)
+    int total_len = 0;
+    ql_socket_pkt_t pkt = (ql_socket_pkt_t)malloc(sizeof(ql_socket_pkt_s));
+    pkt->offset = 0;
+    pkt->next = NULL;
+    for (int i = 0; i < size; i++)
     {
         if (*(data + i) == '.')
-            j++;
+            dot_count++;
     }
-    /* There would be several dns result, we just pickup one */
-    if (j == 3)
+    if (dot_count == 3)
     {
-        sscanf(data, "+QIURC: \"dnsgip\",\"%[^\"]", recv_ip);
-        recv_ip[15] = '\0';
-
-        /* set module information socket data */
-        if (module->socket_data == QOSA_NULL)
+        if (sscanf(data, "+QIURC: \"recv\",%d,%d,\"%15[^\"]\",%hu", &fd, (int *) &total_len, recv_ip, &pkt->port) != 4)
         {
-            module->socket_data = calloc(1, sizeof(recv_ip));
-            if (module->socket_data == QOSA_NULL)
-            {
-                return;
-            }
+            LOG_E("parse recv data failed");
+            free(pkt);
+            return;
         }
-        memcpy(module->socket_data, recv_ip, sizeof(recv_ip));
-        ql_socket_event_send(device, QL_EVENT_DOMAIN_OK);
+        inet_aton(recv_ip, &pkt->sin_addr);
     }
     else
     {
-        sscanf(data, "+QIURC: \"dnsgip\",%d,%d,%d", &result, &ip_count, &dns_ttl);
-        if (result)
-        {
-            at_tcp_ip_errcode_parse(result);
-        }
+        sscanf(data, "+QIURC: \"recv\",%d,%d", &fd, &total_len);
+        pkt->port = 0;
+        pkt->sin_addr = 0;
+    }
+    ql_socket_t handle = ql_socket_find_handle_by_fd(fd);
+    if (NULL == handle)
+    {
+        free(pkt);
+        return;
+    }
+    while (total_len > 0)
+    {
+        size_t recv_len = (total_len > ONE_PKT_MAX_LENGTH ? ONE_PKT_MAX_LENGTH : total_len);
+        pkt->data = (char *)malloc(recv_len);
+        size_t ret = at_client_obj_recv(handle->client, pkt->data, recv_len, 2000, false);
+        total_len -= ret;
+        pkt->total = ret;
+        qosa_mutex_lock(handle->lock, QOSA_WAIT_FOREVER);
+        ql_socket_pkt_put(handle, pkt);
+        qosa_mutex_unlock(handle->lock);
+        qosa_sem_release(handle->sem);
+        qosa_sem_release(s_fd_sem);
     }
 }
 
-static void urc_func(struct at_client *client, const char *data, s32_t size)
+static void ql_socket_urc_incoming(struct at_client *client, const char *data, s32_t size, void *arg)
 {
-    QOSA_ASSERT(data);
+    int clientfd = -1;
+    int serverfd = -1;
+    int dot_count = 0;
+    char recv_ip[16] = {0};
 
-    LOG_I("URC data : %.*s", size, data);
+    for (int i = 0; i < size; i++)
+    {
+        if (*(data + i) == '.')
+            dot_count++;
+    }
+    ql_socket_pkt_t pkt = (ql_socket_pkt_t)malloc(sizeof(ql_socket_pkt_s));
+    pkt->offset = 0;
+    pkt->next = NULL;
+    if (dot_count == 3)
+    {
+        if (sscanf(data, "+QIURC: \"incoming\",%d,%d,\"%15[^\"]\",%hu", &clientfd, &serverfd, recv_ip, &pkt->port) != 4)
+        {
+            LOG_E("parse recv data failed");
+            free(pkt);
+            return;
+        }
+        ql_socket_t handle = ql_socket_find_handle_by_fd(serverfd);
+        if (NULL == handle)
+        {
+            free(pkt);
+            return;
+        }
+        inet_aton(recv_ip, &pkt->sin_addr);
+        pkt->total = sizeof(int);
+        pkt->data = (char*)malloc(sizeof(int));
+        *(int*)pkt->data = clientfd;
+        LOG_I("client_fd = %d, server_fd = %d", clientfd, serverfd);
+        ql_socket_t new_handle = ql_socket_alloc(clientfd);
+        if (NULL == new_handle)
+        {
+            LOG_E("create new peer socket failed.");
+            close(clientfd);
+            return;
+        }
+        new_handle->state = QL_SOCKET_CONNECTED;
+        new_handle->type = handle->type;
+        qosa_mutex_lock(handle->lock, QOSA_WAIT_FOREVER);
+        ql_socket_pkt_put(handle, pkt);
+        qosa_mutex_unlock(handle->lock);
+        qosa_sem_release(handle->sem);
+        qosa_sem_release(s_fd_sem);
+    }
 }
 
-static void urc_qiurc_func(struct at_client *client, const char *data, s32_t size)
+static void ql_socket_urc_default(struct at_client *client, const char *data, size_t size, void *arg)
+{
+    LOG_I("URC data : %s", data);
+}
+
+static void ql_socket_urc_connect(struct at_client *client, const char *data, size_t size, void *arg)
+{
+    int fd = -1;
+    int err = 0;
+	sscanf(data, "+QIOPEN: %d,%d", &fd, &err);
+    ql_socket_t handle = ql_socket_find_handle_by_fd(fd);
+    if (NULL == handle)
+        return;
+    handle->err = (QL_SOCKET_ERR_CODE_E)err;
+    qosa_sem_release(handle->sem);
+}
+
+static void ql_socket_urc_qiurc(struct at_client *client, const char *data, size_t size, void *arg)
 {
     QOSA_ASSERT(data && size);
 
     switch(*(data + 9))
     {
-        case 'c' : urc_close_func(client, data, size);    break;//+QIURC: "closed"
-        case 'r' : urc_recv_func(client, data, size);     break;//+QIURC: "recv"
-        case 'p' : urc_pdpdeact_func(client, data, size); break;//+QIURC: "pdpdeact"
-        case 'd' : urc_dnsqip_func(client, data, size);   break;//+QIURC: "dnsgip"
-        case 'i' : urc_incoming_func(client, data, size); break;//+QIURC: "incoming"
-        default  : urc_func(client, data, size);          break;
+        case 'c' : ql_socket_urc_close(client, data, size, arg);    break;//+QIURC: "closed"
+        case 'r' : ql_socket_urc_recv(client, data, size, arg);     break;//+QIURC: "recv"
+        case 'i' : ql_socket_urc_incoming(client, data, size, arg); break;//+QIURC: "incoming"
+        default  : ql_socket_urc_default(client, data, size, arg);  break;
     }
 }
 
-static const struct at_urc urc_table[] =
+static const struct at_urc s_socket_urc_table[] =
 {
-    {"+QIOPEN:",    "\r\n",                 urc_connect_func},
-    {"+QIURC:",     "\r\n",                 urc_qiurc_func},
+    {"+QIOPEN:",    "\r\n",                 ql_socket_urc_connect},
+    {"+QIURC:",     "\r\n",                 ql_socket_urc_qiurc}
 };
 
-/*****************************************************************************************/
-
-static void ql_socket_service_proc(void *argument)
+static int ql_socket_connect(ql_socket_t handle, const struct sockaddr *addr, socklen_t addrlen, bool is_client)
 {
-    msg_node msgs;
-    int status = QOSA_OK;
+    struct sockaddr_in *sock_addr = (struct sockaddr_in *)addr;
+    char *ip = inet_ntoa(sock_addr->sin_addr);
+    uint16_t port = ntohs(sock_addr->sin_port);
+    at_response_t resp = NULL;
+    int fd = handle->fd;
 
-	LOG_V("%s, stack space %d",__FUNCTION__, qosa_task_get_stack_space(qosa_task_get_current_ref()));
+    LOG_V("ip = %s, port = %d, is_client = %d", ip, port, is_client);
 
-    /* A service that provides network socket interface, and keep the services provided effective */
-    while(1)
+    QOSA_ASSERT(port >= 0);
+    const char *protocol = NULL;
+    const char *remote_ip = is_client ? ip : "127.0.0.1";
+    uint16_t remote_port = is_client ? port : 0;
+    uint16_t local_port = is_client ? 0 : port;
+    switch (handle->type)
     {
-        memset(&msgs, 0, sizeof(msg_node));
-        status = qosa_msgq_wait(g_socket_msg_id, (void *)&msgs, sizeof(msg_node), QOSA_WAIT_FOREVER);
-		if (status != QOSA_OK)
-		{
-			LOG_E("Receive msg from broadcast thread error!");
-			continue;
-		}
-        else
+    case SOCK_STREAM:
+        protocol = is_client ? "TCP" : "TCP LISTENER";
+        break;
+    case SOCK_DGRAM:
+        protocol = is_client ? "UDP" : "UDP SERVICE";
+        break;
+    default:
+        LOG_E("Not supported socket type: %d", handle->type);
+        return -1;
+    }
+    resp = at_create_resp_new(128, 0, 150 * RT_TICK_PER_SECOND, NULL);
+    if (at_obj_exec_cmd(handle->client, resp, "AT+QIOPEN=1,%d,\"%s\",\"%s\",%d,%d,1", fd, protocol, remote_ip, remote_port, local_port) < 0)
+    {
+        at_delete_resp(resp);
+        return -1;
+    }
+    if (qosa_sem_wait(handle->sem, 151 * RT_TICK_PER_SECOND) == 0 && QL_SOCKET_OK == handle->err)
+    {
+        at_delete_resp(resp);
+        return 0;
+    }
+    at_delete_resp(resp);
+    return -1;
+}
+
+static int ql_socket_send(ql_socket_t handle, const char *buf, size_t len, const struct sockaddr *to, socklen_t tolen)
+{
+    LOG_V("buff = %s, len = %d", buf, len);
+    char cmd[128] = {0};
+    if ((handle->type == SOCK_DGRAM) && handle->state == QL_SOCKET_LISTEN)
+    {
+        struct sockaddr_in *sock_addr = (struct sockaddr_in *)to;
+        char *ip = inet_ntoa(sock_addr->sin_addr);
+        uint16_t port = ntohs(sock_addr->sin_port);
+        snprintf(cmd, sizeof(cmd), "AT+QISEND=%d,%%d,%s,%d", handle->fd, ip, port);
+    }
+    else
+    {
+        snprintf(cmd, sizeof(cmd), "AT+QISEND=%d,%%d", handle->fd);
+    }
+    return at_obj_exec_cmd_with_data(handle->client, cmd, buf, len);
+}
+
+int ql_socket(int domain, int type, int protocol)
+{
+    if (!s_global_socket_init)
+    {
+        qosa_mutex_create(&s_fd_lock);
+        qosa_sem_create(&s_fd_sem, 0);
+        at_set_urc_table(s_socket_urc_table, sizeof(s_socket_urc_table) / sizeof(s_socket_urc_table[0]));
+        s_global_socket_init = true;
+    }
+    ql_socket_t handle = ql_socket_alloc(-1);
+    if (NULL == handle)
+        return -1;
+    QOSA_ASSERT(domain == AF_AT || domain == AF_INET); // not used actually
+
+    if (type != SOCK_STREAM && type != SOCK_DGRAM)
+    {
+        LOG_E("socket only support SOCK_STREAM and SOCK_DGRAM.");
+        return -1;
+    }
+    handle->type = type;
+    handle->state = QL_SOCKET_OPEN;
+    return handle->fd;
+}
+
+int ql_close(int sockfd)
+{
+    ql_socket_t handle = ql_socket_find_handle_by_fd(sockfd);
+    if (NULL == handle)
+    {
+        return -1;
+    }
+    if (handle->err != QL_SOCKET_ERR_FD_USED) // socket is being used elsewhere and cannot be closed 
+    {
+        at_response_t resp = at_create_resp_new(128, 0, 10 * RT_TICK_PER_SECOND, NULL);
+        at_obj_exec_cmd(handle->client, resp, "AT+QICLOSE=%d,1", sockfd);
+        at_delete_resp(resp);
+    } 
+    ql_socket_release_fd(handle->fd);
+    ql_socket_pkt_delete_all(handle);
+    qosa_sem_delete(handle->sem);
+    qosa_mutex_delete(handle->lock);
+    free(handle);
+    return 0;
+}
+
+int ql_shutdown(int sockfd, int how)
+{
+    return ql_close(sockfd);
+}
+
+int ql_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+{
+    ql_socket_t handle = ql_socket_find_handle_by_fd(sockfd);
+    if (NULL == handle || NULL == addr)
+    {
+        return -1;
+    }
+    if (ql_socket_connect(handle, addr, addrlen, true) != 0)
+    {
+        return -1;
+    }
+    handle->state = QL_SOCKET_CONNECTED;
+    return 0;
+}
+
+int ql_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+{
+    ql_socket_t handle = ql_socket_find_handle_by_fd(sockfd);
+    if (NULL == handle)
+    {
+        return -1;
+    }
+    if (ql_socket_connect(handle, addr, addrlen, false) != 0)
+    {
+        return -1;
+    }
+    handle->state = QL_SOCKET_LISTEN;
+    return 0;
+}
+
+int ql_listen(int sockfd, int backlog)
+{
+    ql_socket_t handle = ql_socket_find_handle_by_fd(sockfd);
+    if (NULL == handle)
+    {
+        return -1;
+    }
+    return 0;
+}
+
+int ql_accept(int sockfd, struct sockaddr *name, socklen_t *namelen)
+{
+    ql_socket_t new_handle = NULL;
+    ql_socket_t handle = ql_socket_find_handle_by_fd(sockfd);
+    if (NULL == handle)
+    {
+        return -1;
+    }
+    if (handle->state != QL_SOCKET_LISTEN)
+    {
+        LOG_E("Please listen socket first");
+        return -1;
+    }
+    while (true)
+    {
+        qosa_mutex_lock(handle->lock, QOSA_WAIT_FOREVER);
+        ql_socket_pkt_t pkt = ql_socket_pkt_get(handle);
+        qosa_mutex_unlock(handle->lock);
+        if (NULL == pkt)
         {
-            LOG_V("Receive broadcast msg is what=0x%x, arg1=0x%x, arg2=0x%x, arg3=0x%x", msgs.what, msgs.arg1, msgs.arg2, msgs.arg3);
-            switch (msgs.what)
+            qosa_sem_wait(handle->sem, QOSA_WAIT_FOREVER);
+            continue;
+        }
+        int peer_sock = *(int*)pkt->data;
+        new_handle = ql_socket_find_handle_by_fd(peer_sock);
+        if (NULL == new_handle)
+        {
+            break;
+        }
+        if (NULL == name || NULL == namelen)
+            break;
+        struct sockaddr_in sin;
+        sin.sin_family = AF_INET;
+        sin.sin_port = pkt->port;
+        sin.sin_addr.s_addr = pkt->sin_addr;
+        *namelen = sizeof(sin);
+        memcpy(name, &sin, *namelen);
+        break;
+    }
+    ql_socket_pkt_delete_head(handle);
+    return (NULL == new_handle ? -1 : new_handle->fd);
+}
+
+int ql_select(int nfds, ql_fd_set *readfds, ql_fd_set *writefds, ql_fd_set *exceptfds, struct timeval *timeout)
+{
+    if (NULL == readfds || nfds <= 0 || nfds > SOCKET_MAX_FD)
+    {
+        LOG_E("readfds or nfds is invalid");
+        return -1;
+    }
+    static bool has_called = false;
+    if (has_called)
+    {
+        LOG_E("select can only be called once");
+        return -1;
+    }
+    has_called = true;
+    int count = 0;
+    ql_fd_set origin_fds = *readfds;
+    uint64_t start_time = qosa_get_uptime_milliseconds();
+    uint64_t wait_time = QOSA_WAIT_FOREVER;
+    QL_FD_ZERO(readfds);
+    while (true)
+    {
+        for (int fd = 0; fd <nfds; fd++)
+        {
+            if (QL_FD_ISSET(fd, &origin_fds))
             {
-                case QL_BROADCAST_SOCKET_CONNECT_SUCCESS:
-                    LOG_D("QL_BROADCAST_SOCKET_CONNECT_SUCCESS");
-                    break;
+                ql_socket_t handle = ql_socket_find_handle_by_fd(fd);
+                if (handle != NULL && (handle->pkt_head != NULL || handle->state == QL_SOCKET_CLOSING))
+                {
+                    QL_FD_SET(fd, readfds);
+                    count++;
+                    continue;
+                }
+            }
+        }
+        if (count > 0)
+            break;
+        if (timeout != NULL)
+        {
+            uint64_t elapsed_time = qosa_get_uptime_milliseconds() - start_time;
+            uint64_t total_timeout = timeout->tv_sec * 1000 + timeout->tv_usec / 1000;
+            if (elapsed_time >= total_timeout)
+                break;
+            wait_time = total_timeout - elapsed_time;
+        }
+        if (qosa_sem_wait(s_fd_sem, wait_time) != QOSA_OK)
+            break;
+    }
+    has_called = false;
+    return count;
+}
 
-                case QL_BROADCAST_SOCKET_CONNECT_FAILURE:
-                    LOG_D("QL_BROADCAST_SOCKET_CONNECT_FAILURE");
-                    break;
+int ql_sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *to, socklen_t tolen)
+{
+    ql_socket_t handle = ql_socket_find_handle_by_fd(sockfd);
+    if (NULL == handle)
+    {
+        return -1;
+    }
+    if (NULL == buf || len <= 0)
+    {
+        LOG_E("buf or len is invalid.");
+        return -1;
+    }
 
-                case QL_BROADCAST_SOCKET_SEND_DATA_SUCCESS:
-                    LOG_D("QL_BROADCAST_SOCKET_SEND_DATA_SUCCESS");
-                    break;
+    switch (handle->type)
+    {
+    case SOCK_STREAM:
+        if (handle->state != QL_SOCKET_CONNECTED )
+        {
+            LOG_E("socket is not connected.");
+            return -1;
+        }
+        break;
 
-                case QL_BROADCAST_SOCKET_SEND_DATA_FAILURE:
-                    LOG_D("QL_BROADCAST_SOCKET_SEND_DATA_FAILURE");
-                    break;
+    case SOCK_DGRAM:
+        if (NULL == to)
+            return -1;
+        if (handle->state == QL_SOCKET_OPEN)
+        {
+            if (ql_socket_connect(handle, to, tolen, true) != 0)
+            {
+                LOG_E("udp connect to server failed.");
+                return -1;
+            }
+            handle->state = QL_SOCKET_CONNECTED;
+        }
+        break;
+    default:
+        break;
+    }
+    return ql_socket_send(handle, (const char*)buf, len, to, tolen);
+}
 
-                case QL_BROADCAST_SOCKET_RECV_DATA_SUCCESS:
-                    LOG_D("QL_BROADCAST_SOCKET_RECV_DATA_SUCCESS");
-                    break;
+int ql_send(int sockfd, const void *buf, size_t len, int flags)
+{
+    return ql_sendto(sockfd, buf, len, flags, NULL, 0);
+}
 
-                case QL_BROADCAST_SOCKET_RECV_DATA_FAILURE:
-                    LOG_D("QL_BROADCAST_SOCKET_RECV_DATA_FAILURE");
-                    break;
-
-                case QL_BROADCAST_NET_DATACALL_SUCCESS:
-                    {
-                        struct at_socket_ops ql_at_socket_ops;
-                        at_client_t client = at_client_get_first();
-                        ip_addr_t module_addr;
-                        #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_NETWORK__
-                        // module_addr = ql_net_get_ip();
-                        #endif
-
-                        memset(&ql_at_socket_ops, 0, sizeof(struct at_socket_ops));
-
-                        ql_at_socket_ops.at_connect        = ql_socket_at_connect;
-                        ql_at_socket_ops.at_closesocket    = ql_socket_at_closesocket;
-                        ql_at_socket_ops.at_send           = ql_socket_at_send;
-                        ql_at_socket_ops.at_domain_resolve = ql_socket_at_domain_resolve;
-                        ql_at_socket_ops.at_set_event_cb   = ql_socket_at_set_event_cb;
-                        // ql_at_socket_ops.at_socket         = ql_socket_at_socket;
-                        at_device_socket_register(12, &ql_at_socket_ops, client, &module_addr);
-                        LOG_D("at_device_socket_register success");
-                        broadcast_send_msg_myself(QL_BROADCAST_SOCKET_INIT_SUCCESS, 0, 0, 0);  //Send tcp init successful broadcast
-                    }
-                    break;
-
-                default:
-                    LOG_D("Unrecognized message");
+int ql_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen)
+{
+    ql_socket_t handle = ql_socket_find_handle_by_fd(sockfd);
+    if (NULL == handle)
+    {
+        return -1;
+    }
+    if (NULL == buf || len <= 0)
+    {
+        LOG_E("buf or len is invalid.");
+        return -1;
+    }
+    while (true)
+    {
+        qosa_mutex_lock(handle->lock, QOSA_WAIT_FOREVER);
+        ql_socket_pkt_t pkt = ql_socket_pkt_get(handle);
+        qosa_mutex_unlock(handle->lock);
+        if (NULL == pkt)
+        {
+            if (handle->state == QL_SOCKET_CLOSING) // peer closed
+                break;
+            if (flags & MSG_DONTWAIT)
+                return -1;
+            if(qosa_sem_wait(handle->sem, handle->timeout) != QOSA_OK)
+                return -1;
+            continue;
+        }
+        if (from != NULL && fromlen != NULL)
+        {
+            struct sockaddr_in sin;
+            sin.sin_family = AF_INET;
+            sin.sin_port = htons(pkt->port);
+            sin.sin_addr.s_addr = pkt->sin_addr;
+            *fromlen = sizeof(sin);
+            memcpy(from, &sin, *fromlen);
+        }
+        size_t need_len = len;
+        u32_t first_port = pkt->port;
+        u32_t first_addr = pkt->sin_addr;
+        while (pkt != NULL && need_len > 0)
+        {
+            size_t pkt_left = pkt->total - pkt->offset;
+            if (pkt_left >= need_len)
+            {
+                memcpy(buf + len - need_len, pkt->data + pkt->offset, need_len);
+                pkt->offset += need_len;
+                need_len = 0;
+                if (pkt->offset == pkt->total)
+                    ql_socket_pkt_delete_head(handle);
+                break;
+            }
+            else
+            {
+                memcpy(buf + len - need_len, pkt->data + pkt->offset, pkt_left);
+                need_len -= pkt_left;
+                ql_socket_pkt_delete_head(handle);
+                pkt = ql_socket_pkt_get(handle);
+                if (pkt->port != first_port || pkt->sin_addr != first_addr)
                     break;
             }
         }
+        return len - need_len;
     }
-    LOG_V("%s over",__FUNCTION__);
-    qosa_task_exit();
+    return 0;
 }
 
-int ql_socket_service_create(void)
+int ql_recv(int sockfd, void *buf, size_t len, int flags)
 {
-    int ret = QOSA_OK;
-    int status = QOSA_OK;
+    return ql_recvfrom(sockfd, buf, len, flags, NULL, NULL);
+}
 
-    LOG_V("%s",__FUNCTION__);
+int ql_setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen)
+{
+    ql_socket_t handle = ql_socket_find_handle_by_fd(sockfd);
+    if (NULL == handle)
+    {
+        return -1;
+    }
+    if (NULL == optval)
+    {
+        LOG_E("AT setsockopt input option value error!");
+        return -1;
+    }
 
-    //1. Creat msg queue
-    status = qosa_msgq_create(&g_socket_msg_id, sizeof(msg_node), MAX_MSG_COUNT);
-	if (status != QOSA_OK)
-	{
-		LOG_E("Create ql_socket_service msg failed!");
-		return -1;
-	}
+    switch (level)
+    {
+    case SOL_SOCKET:
+        switch (optname)
+        {
+        case SO_RCVTIMEO:
+            handle->timeout = ((const struct timeval *) optval)->tv_sec * 1000
+                    + ((const struct timeval *) optval)->tv_usec / 1000;
+            break;
 
-    //2. Register which broadcasts need to be processed
-    broadcast_reg_receive_msg(QL_BROADCAST_SOCKET_CONNECT_SUCCESS,   g_socket_msg_id);
-    broadcast_reg_receive_msg(QL_BROADCAST_SOCKET_CONNECT_FAILURE,   g_socket_msg_id);
-    broadcast_reg_receive_msg(QL_BROADCAST_SOCKET_SEND_DATA_SUCCESS, g_socket_msg_id);
-    broadcast_reg_receive_msg(QL_BROADCAST_SOCKET_SEND_DATA_FAILURE, g_socket_msg_id);
-    broadcast_reg_receive_msg(QL_BROADCAST_SOCKET_RECV_DATA_SUCCESS, g_socket_msg_id);
-    broadcast_reg_receive_msg(QL_BROADCAST_SOCKET_RECV_DATA_FAILURE, g_socket_msg_id);
-    broadcast_reg_receive_msg(QL_BROADCAST_NET_DATACALL_SUCCESS,  g_socket_msg_id);
+        case SO_SNDTIMEO:
+            break;
 
-    //3. Deal with tcp problems
-    /* register URC data execution function  */
-    at_set_urc_table(urc_table, sizeof(urc_table) / sizeof(urc_table[0]));
-
-    //4. Create net service
-    ret = qosa_task_create(&g_socket_thread_id, 512*10, QOSA_PRIORITY_NORMAL, "Tcp_S", ql_socket_service_proc, NULL);
-	if (ret != QOSA_OK)
-	{
-		LOG_E ("ql_socket_service_create thread could not start!");
-		return -1;
-	}
-
-    LOG_I("%s over(%x)",__FUNCTION__, g_socket_thread_id);
+        default:
+            return -1;
+        }
+        break;
+    case IPPROTO_TCP:
+        switch (optname)
+        {
+        case TCP_NODELAY:
+            break;
+        }
+        break;
+    default:
+        return -1;
+    }
 
     return 0;
 }
 
-int ql_socket_service_destroy(void)
+int ql_getsockopt(int socket, int level, int optname, void *optval, socklen_t *optlen)
 {
-    int ret = QOSA_OK;
-
-    LOG_V("%s",__FUNCTION__);
-
-    //1. Deal with tcp problems
-
-    //2. UnRegister which broadcasts need to be processed
-    broadcast_unreg_receive_msg(QL_BROADCAST_SOCKET_CONNECT_SUCCESS,   g_socket_msg_id);
-    broadcast_unreg_receive_msg(QL_BROADCAST_SOCKET_CONNECT_FAILURE,   g_socket_msg_id);
-    broadcast_unreg_receive_msg(QL_BROADCAST_SOCKET_SEND_DATA_SUCCESS, g_socket_msg_id);
-    broadcast_unreg_receive_msg(QL_BROADCAST_SOCKET_SEND_DATA_FAILURE, g_socket_msg_id);
-    broadcast_unreg_receive_msg(QL_BROADCAST_SOCKET_RECV_DATA_SUCCESS, g_socket_msg_id);
-    broadcast_unreg_receive_msg(QL_BROADCAST_SOCKET_RECV_DATA_FAILURE, g_socket_msg_id);
-    broadcast_unreg_receive_msg(QL_BROADCAST_NET_DATACALL_SUCCESS,     g_socket_msg_id);
-
-    //3. Destroy net service
-    if (NULL != g_socket_thread_id)
-    {
-        ret = qosa_task_delete(g_socket_thread_id);
-        if (0 != ret)
-        {
-            LOG_E("Delete g_socket_thread_id thread failed! %d", ret);
-            return -1;
-        }
-    }
-
-    //4. Delete msg queue
-    if (NULL != g_socket_msg_id)
-    {
-        ret = qosa_msgq_delete(g_socket_msg_id);
-        if (QOSA_OK != ret)
-        {
-            LOG_E("Delete g_socket_msg_id msg failed! %d", ret);
-            return -1;
-        }
-    }
-    LOG_V("%s over",__FUNCTION__);
-
     return 0;
 }
-
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET__ */

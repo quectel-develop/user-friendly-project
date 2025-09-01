@@ -7,30 +7,55 @@
 
 void example_ftp()
 {
-    quectel_ftp_t handle = quectel_ftp_init("112.31.84.164", 8309, at_client_get_first());
-    quectel_ftp_setopt(handle, QT_FTP_OPT_FILE_TYPE, QT_FTP_FILE_TYPE_BINARY);
-    quectel_ftp_setopt(handle, QT_FTP_OPT_CONTEXT_ID, 1);
-    quectel_ftp_setopt(handle, QT_FTP_OPT_RSP_TIMEOUT, 80);
-    quectel_ftp_setopt(handle, QT_FTP_OPT_SSL_TYPE, QT_FTP_SSL_TYPE_CLIENT);
-    quectel_ftp_setopt(handle, QT_FTP_OPT_SSL_CTXID, 0);
-    quectel_ftp_setopt(handle, QT_FTP_OPT_SSL_DATA_ADDR, QT_FTP_DATA_ADDR_PORT);
-    quectel_ftp_setopt(handle, QT_FTP_OPT_REST_ENABLE, false);
-    QtFtpErrCode err = quectel_ftp_login(handle, "test", "test");
+    ql_ftp_t handle = ql_ftp_init("112.31.84.164", 8309, at_client_get_first());
+    ql_ftp_setopt(handle, QL_FTP_OPT_CONTEXT_ID, 1);
+    ql_ftp_setopt(handle, QL_FTP_OPT_FILE_TYPE, QL_FTP_FILEL_TYPE_ASCII);
+    ql_ftp_setopt(handle, QL_FTP_OPT_RSP_TIMEOUT, 80);
+    QL_FTP_ERR_CODE_E err = ql_ftp_login(handle, "test", "test");
     LOG_D("err = %d", err);
-    // quectel_ftp_rmdir(handle, "/Wells");
-    // quectel_ftp_mkdir(handle, "/Wells");
-    quectel_ftp_cwd(handle, "/Wells");
-    // char pwd_path[256];
-    // quectel_ftp_pwd(handle, pwd_path);
-    // quectel_ftp_upload(handle, "0:no_file.txt", "111.txt");
-    // quectel_ftp_upload(handle, "0:111.txt", "111.txt");
-    // quectel_ftp_upload(handle, "UFS:ca.pem", "ca.pem");
-    // quectel_ftp_download(handle, "no_file.txt", "0:222.txt");
-    // quectel_ftp_download(handle, "111.txt", "0:222.txt");
-    // quectel_ftp_download(handle, "ca.pem", "UFS:ca1.pem");
-    quectel_ftp_file_delete(handle, "ca.pem");
-    // quectel_ftp_list(handle, "/");
+    // ql_ftp_mkdir(handle, "/Test");
+    ql_ftp_cwd(handle, "/Test");
+    ql_ftp_upload(handle, "0:111.txt", "dst_3k.txt");
+    ql_ftp_file_info_s *file_head = NULL;
+    ql_ftp_list(handle, "/Test", &file_head);
+    ql_ftp_list_free(file_head);
+    ql_ftp_download(handle, "dst_3k.txt", "0:dst_3k.txt");
+    ql_ftp_file_delete(handle, "dst_3k.txt");
+    ql_ftp_uninit(handle);
 }
 
+void example_ftps()
+{
+    ql_ftp_t handle = ql_ftp_init("112.31.84.164", 8311, at_client_get_first());
+    ql_ftp_setopt(handle, QL_FTP_OPT_FILE_TYPE, QL_FTP_FILE_TYPE_BINARY);
+    ql_ftp_setopt(handle, QL_FTP_OPT_CONTEXT_ID, 1);
+    ql_ftp_setopt(handle, QL_FTP_OPT_RSP_TIMEOUT, 80);
+
+
+    ql_SSL_Config ssl_config;
+    memset(&ssl_config, 0, sizeof(ssl_config));
+    ssl_config.sslenble = 1;
+    ssl_config.ssltype = 1;
+    ssl_config.sslctxid = 0;
+    ssl_config.ciphersuite = 0xFFFF;
+    ssl_config.seclevel = SEC_LEVEL_SERVER_AUTHENTICATION;
+    ssl_config.sslversion = SSL_VERSION_ALL;
+    ssl_config.src_is_path = true;   // if false cacert_src is file content
+    ssl_config.cacert_src = "ftp_ca.pem";
+    ssl_config.cacert_dst_path = "ftp_ca.pem";
+    ql_ftp_set_ssl(handle, ssl_config);
+
+    QL_FTP_ERR_CODE_E err = ql_ftp_login(handle, "test", "test");
+    LOG_D("err = %d", err);
+    ql_ftp_mkdir(handle, "/FTP-TEST");
+    ql_ftp_cwd(handle, "/TEST");
+    ql_ftp_upload(handle, "0:111.txt", "111.txt");
+    ql_ftp_file_info_s *file_head = NULL;
+    ql_ftp_list(handle, "/FTP-TEST", &file_head);
+    ql_ftp_list_free(file_head);
+    ql_ftp_download(handle, "111.txt", "0:222.txt");
+    ql_ftp_file_delete(handle, "111.txt"); 
+    ql_ftp_uninit(handle);
+}
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_FTP_S__ */
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_CLI_TEST__ */

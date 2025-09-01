@@ -6,7 +6,7 @@
 #define __EXAMPLE_PSM_H__
 
 
-
+void example_psm(void);
 #endif /* __EXAMPLE_PSM_H__ */
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_PSM__ */
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_CLI_TEST__ */

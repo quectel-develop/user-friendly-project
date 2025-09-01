@@ -15,10 +15,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include "qosa_def.h"
+#include "hal_uart.h"
+#include "qosa_utils.h"
 #include "stdarg.h"
 #include "qosa_log.h"
 
-#define NAME_MAX       8
+#define NAME_MAX       12
 #define QL_MODULE_SEND_MAX_SIZE       1460
 
 #define AT_RESP_END_OK    "OK"
@@ -378,7 +380,7 @@ int at_obj_exec_cmd(at_client_t client, at_response_t resp, const char *cmd_expr
     }
 
     qosa_mutex_lock(client->lock, QOSA_WAIT_FOREVER);
-
+    
     client->resp_status = AT_RESP_OK;
     client->resp = resp;
     client->self_func = resp->self_func;
@@ -388,7 +390,7 @@ int at_obj_exec_cmd(at_client_t client, at_response_t resp, const char *cmd_expr
         resp->buf_len = 0;
         resp->line_counts = 0;
     }
-
+    while (qosa_sem_wait(client->resp_notice, 0) == QOSA_OK); // clear last notice
     va_start(args, cmd_expr);
     client->last_cmd_len = at_vprintfln(client->send_buf, client->send_bufsz, cmd_expr, args);
     if (client->last_cmd_len > 2)
@@ -399,6 +401,7 @@ int at_obj_exec_cmd(at_client_t client, at_response_t resp, const char *cmd_expr
 
     if (resp != NULL)
     {
+
         if (qosa_sem_wait(client->resp_notice, resp->timeout) != QOSA_OK)
         {
             LOG_W("execute command (%.*s) timeout (%d ticks)!", client->last_cmd_len, client->send_buf, resp->timeout);
@@ -427,9 +430,9 @@ int at_obj_exec_cmd_with_data(at_client_t client, const char *cmd, const char *d
     size_t sent_len = 0;
     size_t need_len = 0;
     char cmd_exc[128] = {0};
-    char result_str[32] = {0};
     at_response_t resp = QOSA_NULL;
     qosa_mutex_lock(client->lock, QOSA_WAIT_FOREVER);
+    while (qosa_sem_wait(client->resp_notice, 0) == QOSA_OK); // clear last notice
     at_obj_set_end_sign(client, '>');
     while (sent_len < size)
     {
@@ -450,70 +453,6 @@ int at_obj_exec_cmd_with_data(at_client_t client, const char *cmd, const char *d
     at_obj_set_end_sign(client, 0);
     qosa_mutex_unlock(client->lock);
     return sent_len;
-}
-
-/**
- * Waiting for connection to external devices.
- *
- * @param client current AT client object
- * @param timeout millisecond for timeout
- *
- * @return 0 : success
- *        -2 : timeout
- *        -5 : no memory
- */
-int at_client_obj_wait_connect(at_client_t client, u32_t timeout_ms)
-{
-    int           result = QOSA_OK;
-    at_response_t resp = NULL;
-    u32_t      start_time = 0;
-
-    if (client == NULL)
-    {
-        LOG_E("input AT client object is NULL, please create or get AT Client object!");
-        return QOSA_ERROR_GENERAL;
-    }
-
-    resp = at_create_resp(128, 0, 1000);
-    if (resp == NULL)
-    {
-        LOG_E("no memory for AT client response object.");
-        return QOSA_ERROR_NO_MEMORY;
-    }
-
-    qosa_mutex_lock(client->lock, QOSA_WAIT_FOREVER);
-    client->resp = resp;
-
-    start_time = qosa_get_uptime_milliseconds();
-
-    while (1)
-    {
-        /* Check whether it is timeout */
-        if (qosa_get_uptime_milliseconds() - start_time > timeout_ms)
-        {
-            LOG_E("wait AT client connect timeout(%d tick).", timeout_ms);
-            result = QOSA_ERROR_TIMEOUT;
-            break;
-        }
-
-        /* Check whether it is already connected */
-        resp->buf_len = 0;
-        resp->line_counts = 0;
-        #ifdef AT_PRINT_RAW_CMD
-        at_print_raw_cmd("sendline", "AT\r\n", 4);
-        #endif
-        at_utils_send(0, "AT\r\n", 4);
-        if (qosa_sem_wait(client->resp_notice, resp->timeout) != QOSA_OK)
-            continue;
-        else
-            break;
-    }
-
-    at_delete_resp(resp);
-    client->resp = NULL;
-    qosa_mutex_unlock(client->lock);
-
-    return result;
 }
 
 /**
@@ -544,13 +483,35 @@ size_t at_client_obj_send(at_client_t client, const char *buf, size_t size, bool
     else
         LOG_I("sendline %d bytes data", size);
 #endif
-
+    
     qosa_mutex_lock(client->lock, QOSA_WAIT_FOREVER);
 
     len = at_utils_send(0, buf, size);
 
     qosa_mutex_unlock(client->lock);
 
+    return len;
+}
+
+size_t at_client_obj_send_nolock(at_client_t client, const char *buf, size_t size, bool print)
+{
+    size_t len = 0;
+
+    QOSA_ASSERT(buf);
+
+    if (client == NULL)
+    {
+        LOG_E("input AT Client object is NULL, please create or get AT Client object!");
+        return 0;
+    }
+
+#ifdef AT_PRINT_RAW_CMD
+    if (print)
+        at_print_raw_cmd("sendline", buf, size);
+    else
+        LOG_I("sendline %d bytes data", size);
+#endif
+    len = at_utils_send(0, buf, size);
     return len;
 }
 
@@ -629,7 +590,7 @@ size_t at_client_obj_recv(at_client_t client, char *buf, size_t size, int32_t ti
     return len;
 }
 
-size_t at_client_self_recv(at_client_t client, char *buf, size_t size, int32_t timeout,u8_t mode)
+size_t at_client_self_recv(at_client_t client, char *buf, size_t size, int32_t timeout,u8_t mode, bool print)
 {
     size_t read_idx = 0;
     char ch, last_ch = 0;
@@ -669,6 +630,12 @@ size_t at_client_self_recv(at_client_t client, char *buf, size_t size, int32_t t
             break;
         }
     }
+#ifdef AT_PRINT_RAW_CMD
+    if (print)
+        at_print_raw_cmd("self_recv", buf, read_idx);
+    else
+        LOG_I("self_recv %d bytes data", read_idx);
+#endif
     return read_idx;
 }
 
@@ -876,6 +843,8 @@ static void client_parser(void *argv)
         {
             if (strstr(client->recv_line_buf, "SEND OK") || strstr(client->recv_line_buf, "SEND FAIL"))
             {
+                if (strstr(client->recv_line_buf, "SEND FAIL"))
+                    client->resp_status = AT_RESP_ERROR;
                 qosa_sem_release(client->resp_notice);
             }
             else if (client->urc != NULL)
@@ -883,8 +852,8 @@ static void client_parser(void *argv)
                 /* current receive is request, try to execute related operations */
                 if (client->urc->func != NULL)
                 {
-                    if (strstr(client->recv_line_buf, AT_RESP_END_ERROR) != NULL)
-                        qosa_sem_release(client->resp_notice);
+                    // if (strstr(client->recv_line_buf, AT_RESP_END_ERROR) != NULL)
+                    qosa_sem_release(client->resp_notice);
                     client->urc->func(client, client->recv_line_buf, client->recv_line_len, client->arg);
                 }
                 client->urc = NULL;
@@ -934,10 +903,6 @@ static void client_parser(void *argv)
                     {
                         client->resp_status = AT_RESP_ERROR;
                     }
-                    else if (strstr(client->recv_line_buf, AT_RESP_CME_ERR) != NULL)
-                    {
-                        client->resp_status = AT_RESP_ERROR;
-                    }
                     else if (resp->line_counts == resp->line_num && resp->line_num)
                     {
                         /* get the end data by response line, return response state END_OK.*/
@@ -949,7 +914,6 @@ static void client_parser(void *argv)
                         //LOG_D("continue");
                         continue;
                     }
-
                     client->resp = NULL;
                     qosa_sem_release(client->resp_notice);
                 }
@@ -962,10 +926,10 @@ static void client_parser(void *argv)
     }
 }
 
-static void at_client_rx_ind(void *argv)
+static int at_client_rx_ind()
 {
-    //LOG_D("rx event");
     qosa_sem_release(at_client_table[0].rx_notice);
+    return 0;
 }
 
 /* initialize the client object parameters */

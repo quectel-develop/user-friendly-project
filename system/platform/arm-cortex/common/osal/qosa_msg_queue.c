@@ -175,7 +175,7 @@ int qosa_msgq_release(osa_msgq_t msgQRef, u32_t size, uint8_t *value, u32_t time
 
     if (hndl->current_cnt >= hndl->event_max_count)
     {
-        event_printf("event count=%d full, please check you code", hndl->current_cnt);
+        event_printf("event count=%d full", hndl->current_cnt);
         return QOSA_ERROR_EVENT_FULL_ERR;
     }
 

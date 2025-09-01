@@ -9,7 +9,6 @@
 #define NAME_MAX_LEN		    (16)
 
 #define USE_DEBUG_ASSERT
-
 #ifdef  USE_DEBUG_ASSERT
 #define dbg_assert_param(expr) ((expr) ? (void)0U : dbg_assert_failed((uint8_t *)__FILE__, __LINE__))
 #else
@@ -22,22 +21,19 @@ typedef struct
 	char name[NAME_MAX_LEN];
 	int (*func)(int argc, char *argv[]);
     void (*help)(void);
-}Cli_Menu;
+}Cli_Menu_t;
 
 int debug_service_cmd_exec(const char *cmd);
 
-int debug_cli_func_reg(int32_t cnt, Cli_Menu* cli_menu[]);
+int debug_cli_func_reg(int32_t cnt, Cli_Menu_t cli_menu[]);
 int debug_cli_service_create(void);
 int debug_cli_service_destroy(void);
 
 void inc_prompt_wait_count();
-
 void dec_prompt_wait_count();
-
 void log_shell_prompt(void);
 
-
-void serial_input_parse_thread_wake_up(void);
+void debug_uart_input_notify(void);
 
 #endif /* __DEBUG_SERVICE_H__ */
 

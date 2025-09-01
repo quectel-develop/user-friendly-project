@@ -1,6 +1,6 @@
 #include <windows.h>
 #include <time.h>
-
+#include <ctype.h>
 #include "qosa_def.h"
 #include "qosa_system.h"
 #include "qosa_socket.h"

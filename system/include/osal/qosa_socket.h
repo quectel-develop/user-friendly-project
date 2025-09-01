@@ -141,13 +141,16 @@ struct in_addr
    in_addr_t s_addr;
 };
 
+typedef ip4_addr_t ip_addr_t;
+
+char* ipaddr_ntoa(const ip_addr_t *addr);
+int osal_ip4addr_aton(const char *cp, ip4_addr_t *addr);
 #define inet_aton(cp, addr)   osal_ip4addr_aton(cp,(ip4_addr_t*)addr)
 #define inet_ntoa(addr)       ipaddr_ntoa((ip_addr_t*)&(addr))
 /** IPv4 only: set the IP address given as an u32_t */
 #define ip4_addr_set_u32(dest_ipaddr, src_u32) ((dest_ipaddr)->addr = (src_u32))
 
 typedef unsigned int socklen_t;
-typedef ip4_addr_t ip_addr_t;
 
 struct sockaddr {
  u8_t sa_len;
@@ -212,6 +215,8 @@ struct addrinfo {
 #define ntohs(x) (uint16_t)PP_NTOHS(x)
 #define htonl(x) (u32_t)PP_HTONL(x)
 #define ntohl(x) (u32_t)PP_NTOHL(x)
+
+u32_t ipaddr_addr(const char *cp);
 
 #define inet_addr(cp)         ipaddr_addr(cp)
 /** IPv4 only: get the IP address as an u32_t */

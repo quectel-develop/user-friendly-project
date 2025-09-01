@@ -6,7 +6,7 @@
 #define __EXAMPLE_FS_H__
 
 
-void ql_fs_example_init(void);
+void example_file(void);
 
 #endif /* __EXAMPLE_FS_H__ */
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_FILESYSTEM__ */

@@ -14,6 +14,8 @@
 #ifndef __QL_SSL_H__
 #define __QL_SSL_H__
 
+#include <at.h>
+
 typedef enum {
     QL_SSLCFG_SSLVERSION,
     QL_SSLCFG_CIPHERSUITE,
@@ -96,19 +98,22 @@ typedef enum {
 } ql_dtls_version;
 
 typedef struct {
+    at_client_t client; // auto set inside
     u8_t sslenble;
     u8_t ssltype;
     u8_t sslctxid;
     ql_cipher_suites ciphersuite;
     ql_sec_level seclevel;
     ql_ssl_version sslversion;
-    char *cacert_path;
-    char *clientcert_path;
-    char *clientkey_path;
+    char *cacert_src;
+    char *clientcert_src;
+    char *clientkey_src;
+    char *cacert_dst_path;
+    char *clientcert_dst_path;
+    char *clientkey_dst_path;
+    bool src_is_path;
 } ql_SSL_Config;
 
-
-int ql_sslcfg_set(ql_sslcfg_type type, u8_t ssl_ctx_id, ...);
 
 int configure_ssl(ql_SSL_Config *config);
 #endif /* __QL_SSL_H__ */

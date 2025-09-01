@@ -2,13 +2,16 @@
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_CLI_TEST__
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET_TCP_CLIENT__
 #include "cli_tcp.h"
-#include "at_socket.h"
+#include "ql_socket.h"
 #include "qosa_log.h"
+
+#define SOCKET_MAX_LENGTH 512
+extern void at_print_raw_cmd(const char *type, const char *cmd, size_t size);
 
 int cli_tcp_client_test(short sin_port, char *sin_addr, int loop_count, int loop_interval)
 {
     int fd, ret;
-    char buf[64];
+    char *buf = NULL;
     struct sockaddr_in ser_sockaddr;
 
     LOG_D("%s Start",__FUNCTION__);
@@ -29,36 +32,51 @@ int cli_tcp_client_test(short sin_port, char *sin_addr, int loop_count, int loop
     if(ret != 0)
     {
         LOG_E("Server connection failure");
-        closesocket(fd);
+        close(fd);
         return -1;
     }
-    LOG_I("Server connection success %d", ret);
-
+    struct timeval timeout = {60, 0};
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    LOG_I("Server connection success %d, %d", ret, fd);
+    buf = (char *)malloc(SOCKET_MAX_LENGTH);
+    memset(buf,0,SOCKET_MAX_LENGTH);
     sprintf(buf, "%d", fd);
     for (int i=0; i<loop_count; i++)
     {
         ret = send(fd,buf,strlen(buf),0);
         if (ret > 0)
-            LOG_I("Tcp client send %s ok %d, %d", buf, ret, fd);
+        {
+            at_print_raw_cmd("tcp send data", buf, ret);
+            LOG_I("Tcp client send ok len = %d, fd = %d", ret, fd);
+        }
         else
         {
             LOG_E("Tcp client send %s err %d, %d", buf, ret, fd);
             break;
         }
 
-        memset(buf,0,64);
-        ret = recv(fd,buf,64,0);
-        if (0 < ret)
-            LOG_I("Tcp client recv %s ok", buf);
+        memset(buf,0,SOCKET_MAX_LENGTH);
+        ret = recv(fd,buf,SOCKET_MAX_LENGTH,0);
+        if (ret > 0) 
+        {
+            at_print_raw_cmd("tcp recv data", buf, ret);
+            LOG_I("Tcp client recv len: %d, fd :%d", ret, fd);
+        }
+        else if (ret == 0)
+        {
+            LOG_I("peer close");
+            break;
+        }
         else
         {
-            LOG_E("Tcp client recv %s err", buf);
+            LOG_E("tcp recv timeout");
             break;
         }
 
         qosa_task_sleep_ms(loop_interval);
     }
-    closesocket(fd);
+    free(buf);
+    close(fd);
 
     LOG_D("%s over",__FUNCTION__);
 

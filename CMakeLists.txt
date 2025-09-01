@@ -19,7 +19,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # Project Settings
-project("Quectel_UFP_STM32F413RGT6_20250728" C CXX ASM)
+project("Quectel_UFP_STM32F413RGT6_20250901" C CXX ASM)
 message(STATUS "----- PROJECT_NAME [${PROJECT_NAME}] -----")
 
 # Compiler optimization level
@@ -55,7 +55,7 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/apps/example/ftp/*.c
     ${CMAKE_SOURCE_DIR}/apps/example/http/*.c
     ${CMAKE_SOURCE_DIR}/apps/example/mqtt/*.c
-    ${CMAKE_SOURCE_DIR}/apps/example/network/*.c
+    ${CMAKE_SOURCE_DIR}/apps/example/net/*.c
     ${CMAKE_SOURCE_DIR}/apps/example/psm/*.c
     ${CMAKE_SOURCE_DIR}/apps/example/sockets/*.c
     ${CMAKE_SOURCE_DIR}/apps/test/*.c
@@ -70,18 +70,17 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/quectel/common/src/*.c
     ${CMAKE_SOURCE_DIR}/quectel/modules/src/*.c
     ${CMAKE_SOURCE_DIR}/quectel/third_party/at_client/src/*.c
-    ${CMAKE_SOURCE_DIR}/quectel/third_party/at_socket/*.c
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Core/Src/*.c
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Core/Startup/*.s
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Drivers/STM32F4xx_HAL_Driver/Src/*.c
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/FATFS/App/*.c
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/FATFS/Target/*.c
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Middlewares/Third_Party/FatFs/src/*.c
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Middlewares/Third_Party/FatFs/src/option/*.c
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Middlewares/Third_Party/FreeRTOS/Source/*.c
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/*.c
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/*.c
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/*.c
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/FATFS/App/*.c
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/FATFS/Target/*.c
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FatFs/src/*.c
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FatFs/src/option/*.c
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FreeRTOS/Source/*.c
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/*.c
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/*.c
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/*.c
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/hal/*.c
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/osal/*.c
 )
@@ -93,7 +92,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/apps/example/ftp
     ${CMAKE_SOURCE_DIR}/apps/example/http
     ${CMAKE_SOURCE_DIR}/apps/example/mqtt
-    ${CMAKE_SOURCE_DIR}/apps/example/network
+    ${CMAKE_SOURCE_DIR}/apps/example/net
     ${CMAKE_SOURCE_DIR}/apps/example/psm
     ${CMAKE_SOURCE_DIR}/apps/example/sockets
     ${CMAKE_SOURCE_DIR}/apps/test
@@ -109,7 +108,6 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/quectel/common/inc
     ${CMAKE_SOURCE_DIR}/quectel/modules/inc
     ${CMAKE_SOURCE_DIR}/quectel/third_party/at_client/include
-    ${CMAKE_SOURCE_DIR}/quectel/third_party/at_socket
     ${CMAKE_SOURCE_DIR}/system/include/hal
     ${CMAKE_SOURCE_DIR}/system/include/osal
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Core/Inc
@@ -117,12 +115,13 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Drivers/CMSIS/Include
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Drivers/STM32F4xx_HAL_Driver/Inc
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/FATFS/App
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/FATFS/Target
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Middlewares/Third_Party/FatFs/src
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Middlewares/Third_Party/FreeRTOS/Source/include
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/FATFS/App
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/FATFS/Target
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FatFs/src
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FreeRTOS/Source/include
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/hal
 )
 
 

@@ -2,42 +2,46 @@
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_CLI_TEST__
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET_TCP_SERVER__
 #include "cli_tcp_server.h"
-#include "at_socket.h"
+#include "ql_socket.h"
 #include "qosa_log.h"
 
+extern void at_print_raw_cmd(const char *type, const char *cmd, size_t size);
 static void tcp_server_incoming_proc(void *argument)
 {
     int ret = QOSA_OK;
     socket_tcp_server_config *config = (socket_tcp_server_config *)argument;
     unsigned int cli_sock_fd = config->sock_fd;
-    unsigned int loop_count = config->loop_count;
-    unsigned int loop_interval = config->loop_interval;
     char buf[64];
 
     LOG_V("%s Start(%d)",__FUNCTION__, cli_sock_fd);
 
-    for (int i=0; i<loop_count; i++)
+    while (true)
 	{
 		memset(buf,0,64);
 		ret = recv(cli_sock_fd,buf,sizeof(buf),0);
-        if (0 < ret)
-            LOG_I("Tcp server recv %s ok", buf);
+        if (ret > 0)
+        {
+            at_print_raw_cmd("tcp server recv data", buf, ret);
+            LOG_I("Tcp server recv len: %d, fd :%d", ret, cli_sock_fd);
+        }
         else
         {
-            LOG_I("client disconnect");
+            LOG_I("peer disconnect");
             break;
         }
         ret = send(cli_sock_fd,buf,strlen(buf),0);
         if (ret > 0)
-            LOG_I("Tcp server send %s ok %d", buf, ret);
+        {
+            at_print_raw_cmd("tcp server send data", buf, ret);
+            LOG_I("Tcp server send ok len = %d, fd = %d", ret, cli_sock_fd);
+        }
         else
         {
             LOG_E("Tcp server send %s err %d", buf, ret);
             break;
         }
-        qosa_task_sleep_ms(loop_interval);
     }
-    closesocket(cli_sock_fd);
+    close(cli_sock_fd);
 
     LOG_V("%s over",__FUNCTION__);
     qosa_task_exit();
@@ -45,7 +49,8 @@ static void tcp_server_incoming_proc(void *argument)
 
 int cli_tcp_server_test(short sin_port, char *sin_addr, int max_connect_num, int loop_count, int loop_interval)
 {
-    int ser_sock_fd, i, ret, cli_sock_fd, addr_len = sizeof(struct sockaddr_in);
+    int ser_sock_fd, i, ret, cli_sock_fd;
+    socklen_t addr_len = sizeof(struct sockaddr_in);
     struct sockaddr_in ser_sock_addr, cli_sock_addr;
     static socket_tcp_server_config config;
 
@@ -69,6 +74,7 @@ int cli_tcp_server_test(short sin_port, char *sin_addr, int max_connect_num, int
     if(ret == -1)
     {
         LOG_E("Server bind failure");
+        close(ser_sock_fd);
         return -1;
     }
     LOG_I("Server bind success");
@@ -80,6 +86,7 @@ int cli_tcp_server_test(short sin_port, char *sin_addr, int max_connect_num, int
         if(ret == -1)
         {
             LOG_E("Server listen failure");
+            close(ser_sock_fd);
             return -1;
         }
 
@@ -89,9 +96,9 @@ int cli_tcp_server_test(short sin_port, char *sin_addr, int max_connect_num, int
         if(cli_sock_fd == -1)
         {
             LOG_E("Server accept failure");
-            return -1;
+            break;
         }
-        LOG_I("New client connect(%s, %d), %d", inet_ntoa(cli_sock_addr.sin_addr.s_addr), cli_sock_addr.sin_port, cli_sock_fd);
+        LOG_I("New client connect(%s, %d), %d", inet_ntoa(cli_sock_addr.sin_addr.s_addr), ntohs(cli_sock_addr.sin_port), cli_sock_fd);
 
     //5. create net service
         config.loop_count = loop_count;
@@ -101,12 +108,12 @@ int cli_tcp_server_test(short sin_port, char *sin_addr, int max_connect_num, int
         if (ret != QOSA_OK)
         {
             LOG_E ("thread_id thread could not start!");
-            closesocket(ser_sock_fd);
-            return -1;
+            close(cli_sock_fd);
+            continue;
         }
         LOG_I("%s (%x)",__FUNCTION__, thread_id);
     }
-    closesocket(ser_sock_fd);
+    close(ser_sock_fd);
 
     LOG_D("%s over",__FUNCTION__);
 

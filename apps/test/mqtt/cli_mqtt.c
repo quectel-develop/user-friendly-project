@@ -10,7 +10,7 @@
 #include "cmsis_os.h"
 #endif
  
-static quectel_mqtt_client_t s_handle[6] = {NULL};
+static ql_mqtt_t s_handle[6] = {NULL};
 void cli_mqtt_get_help(void)
 {
     LOG_I("  1.   open mqtt ");
@@ -86,8 +86,39 @@ static int cli_mqtt_connect(s32_t argc, char *argv[])
 {
     if (argc < 10)
     {
+        LOG_E("Invalid parameter");
         cli_mqtt_get_help();
         return -1;
+    }
+    LOG_I("     test_type              : %d", atoi(argv[1]));
+    LOG_I("     Server_type            : %d", atoi(argv[2]));
+    LOG_I("     Client_ID              : %s", argv[3]);
+    LOG_I("     server                 : %s", argv[4]);
+    LOG_I("     port                   : %d", atoi(argv[5]));
+    LOG_I("     ProductKey/username    : %s", argv[6]);
+    LOG_I("     DeviceName/password    : %s", argv[7]);
+    LOG_I("     DeviceSecret           : %s", argv[8]);
+    LOG_I("     sslenble               : %d", atoi(argv[9]));
+    ql_SSL_Config ssl_config;
+    memset(&ssl_config, 0, sizeof(ssl_config));
+    ssl_config.sslenble = atoi(argv[9]);
+    if (ssl_config.sslenble)
+    {
+        ssl_config.sslctxid = 0;
+        ssl_config.ssltype = 0;
+        ssl_config.ciphersuite = strtol(argv[10], NULL, 16);
+        ssl_config.seclevel = atoi(argv[11]);
+        ssl_config.sslversion = atoi(argv[12]);
+        ssl_config.src_is_path = true;
+        ssl_config.cacert_src = "mqtt_ca.pem";
+        ssl_config.clientcert_src = "mqtt_user.pem";
+        ssl_config.clientkey_src = "mqtt_user_key.pem";
+        ssl_config.cacert_dst_path = "mqtt_ca.pem";
+        ssl_config.clientcert_dst_path = "mqtt_user.pem";
+        ssl_config.clientkey_dst_path = "mqtt_user_key.pem";
+        LOG_I("     ciphersuite            : 0x%x", ssl_config.ciphersuite);
+        LOG_I("     seclevel               : %d", ssl_config.seclevel);
+        LOG_I("     sslversion             : %d", ssl_config.sslversion);
     }
     int i = 0;
     for (i = 0; i < 6; i++)
@@ -97,7 +128,7 @@ static int cli_mqtt_connect(s32_t argc, char *argv[])
     }
     if (i >= 6)
         return -1;
-    s_handle[i] = quectel_mqtt_client_create(at_client_get_first());
+    s_handle[i] = ql_mqtt_create(at_client_get_first());
     if (NULL == s_handle[i])
         return -1;
 
@@ -106,35 +137,29 @@ static int cli_mqtt_connect(s32_t argc, char *argv[])
     if (atoi(argv[2]) == 0)
     {
         qt_mqtt_ali_auth_options_s auth = {.product_key = argv[6], .device_name = argv[7], .device_secret = argv[8]};
-        quectel_mqtt_setopt(s_handle[i], QT_MQTT_OPT_ALI_AUTH, &auth);
+        ql_mqtt_setopt(s_handle[i], QL_MQTT_OPT_ALI_AUTH, &auth);
         username = NULL;
         password = NULL;
     }
-    quectel_mqtt_setopt(s_handle[i], QT_MQTT_OPT_SUB_CALLBACK, sub_func);
-    quectel_mqtt_setopt(s_handle[i], QT_MQTT_OPT_USER_DATA, s_handle[i]);
-    ql_SSL_Config ssl_config;
-    ssl_config.sslenble = atoi(argv[9]);
     if (ssl_config.sslenble)
+        if (!ql_mqtt_set_ssl(s_handle[i], ssl_config))
+        {
+            LOG_E("mqtt set ssl failed");
+            ql_mqtt_destroy(s_handle[i]);
+            s_handle[i] = NULL;
+            return -1;
+        }
+    ql_mqtt_setopt(s_handle[i], QL_MQTT_OPT_SUB_CALLBACK, sub_func);
+    ql_mqtt_setopt(s_handle[i], QL_MQTT_OPT_USER_DATA, s_handle[i]);
+    QL_MQTT_ERR_CODE_E err = ql_mqtt_connect(s_handle[i], argv[4], atoi(argv[5]), username, password);
+    if (err != QL_MQTT_OK)
     {
-        ssl_config.sslctxid = 0;
-        ssl_config.ssltype = 0;
-        ssl_config.ciphersuite = strtol(argv[10], NULL, 16);
-        ssl_config.seclevel = atoi(argv[11]);
-        ssl_config.sslversion = atoi(argv[12]);
-        LOG_I("            ciphersuite   : 0x%x", ssl_config.ciphersuite);
-        LOG_I("            seclevel      : %d", ssl_config.seclevel);
-        LOG_I("            sslversion    : %d", ssl_config.sslversion);
-        quectel_mqtt_set_ssl(s_handle[i], ssl_config);
-    }
-    QtMqttErrCode err = quectel_mqtt_connect(s_handle[i], argv[4], atoi(argv[5]), username, password);
-    if (err != QT_MQTT_OK)
-    {
-        LOG_E("quectel_mqtt_connect fail");
-        qutecel_mqtt_destroy(s_handle[i]);
+        LOG_E("mqtt connect failed");
+        ql_mqtt_destroy(s_handle[i]);
         s_handle[i] = NULL;
         return -1;
     }
-    LOG_D("quectel_mqtt_connect success");
+    LOG_I("mqtt connect success");
     return 0;
 }
 
@@ -142,9 +167,13 @@ static int cli_mqtt_sub(s32_t argc, char *argv[])
 {
     if (argc < 4)
     {
+        LOG_E("Invalid parameter");
         cli_mqtt_get_help();
         return -1;
     }
+    LOG_I("     test_type         : %d", atoi(argv[1]));
+    LOG_I("     mqtt_fd           : %d", atoi(argv[2]));
+    LOG_I("     topic_name        : %s", argv[3]);
     int i = 0;
     for (i = 0; i < 6; i++)
     {
@@ -156,13 +185,13 @@ static int cli_mqtt_sub(s32_t argc, char *argv[])
         LOG_E("current id not used");
         return -1;
     }
-    if (quectel_mqtt_sub(s_handle[i], argv[3], QT_MQTT_QOS0) != QT_MQTT_OK)
+    if (ql_mqtt_sub(s_handle[i], argv[3], QL_MQTT_QOS0) != QL_MQTT_OK)
     {
-        LOG_E("quectel_mqtt_sub fail");
+        LOG_E("mqtt subscribe failed");
         return -1;
     }
     else
-        LOG_D("quectel_mqtt_sub success");
+        LOG_I("mqtt subscribe success");
     return 0;
 }
 
@@ -170,9 +199,14 @@ static int cli_mqtt_pub(s32_t argc, char *argv[])
 {
     if (argc < 5)
     {
+        LOG_E("Invalid parameter");
         cli_mqtt_get_help();
         return -1;
     }
+    LOG_I("     test_type         : %d", atoi(argv[1]));
+    LOG_I("     mqtt_fd           : %d", atoi(argv[2]));
+    LOG_I("     topic_name        : %s", argv[3]);
+    LOG_I("     message           : %s", argv[4]);
     int i = 0;
     for (i = 0; i < 6; i++)
     {
@@ -184,13 +218,13 @@ static int cli_mqtt_pub(s32_t argc, char *argv[])
         LOG_E("current id not used");
         return -1;
     }
-    if (quectel_mqtt_pub(s_handle[i], argv[3], argv[4], QT_MQTT_QOS0, false) != QT_MQTT_OK)
+    if (ql_mqtt_pub(s_handle[i], argv[3], argv[4], QL_MQTT_QOS0, false) != QL_MQTT_OK)
     {
-        LOG_E("quectel_mqtt_pub fail");
+        LOG_E("mqtt publish failed");
         return -1;
     }
     else
-        LOG_D("quectel_mqtt_pub success");
+        LOG_I("mqtt publish success");
     return 0; 
 }
 
@@ -198,9 +232,12 @@ static int cli_mqtt_disconnect(s32_t argc, char *argv[])
 {
     if (argc < 3)
     {
+        LOG_E("Invalid parameter");
         cli_mqtt_get_help();
         return -1;
     }
+    LOG_I("     test_type         : %d", atoi(argv[1]));
+    LOG_I("     mqtt_fd           : %d", atoi(argv[2]));
     int i = 0;
     for (i = 0; i < 6; i++)
     {
@@ -212,13 +249,21 @@ static int cli_mqtt_disconnect(s32_t argc, char *argv[])
         LOG_E("current id not used");
         return -1;
     }
-    quectel_mqtt_disconnect(s_handle[i]);
-    qutecel_mqtt_destroy(s_handle[i]);
+    ql_mqtt_disconnect(s_handle[i]);
+    ql_mqtt_destroy(s_handle[i]);
+    LOG_I("mqtt close");
     s_handle[i] = NULL;
     return 0;
 }
 int cli_mqtt_test(s32_t argc, char *argv[])
-{ 
+{
+    if (argc < 2) 
+    {
+        LOG_E("Invalid parameter");
+        cli_mqtt_get_help();
+        return -1;
+    }
+
     if (atoi(argv[1]) == 1)
     {
         return cli_mqtt_connect(argc, argv);

@@ -7,8 +7,8 @@ static Module_Type s_module = MOD_TYPE_DEFAULT;
 static const module_type_map_t s_module_type_map[] = {
     {"BG95",    MOD_TYPE_BG95},
     {"BG96",    MOD_TYPE_BG96},
-    {"EC800M",   MOD_TYPE_EC800M},
-    {"EC25", MOD_TYPE_EC25}
+    {"EC800M",  MOD_TYPE_EC800M},
+    {"EC25",    MOD_TYPE_EC25}
     // 可以继续扩展...
 };
 

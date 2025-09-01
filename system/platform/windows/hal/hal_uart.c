@@ -1,12 +1,12 @@
 /*****************************************************************/ /**
-* @file qosa_uart.c
-* @brief 
+* @file hal_uart.c
+* @brief
 * @author larson.li@quectel.com
 * @date 2024-12-23
-* 
-* @copyright Copyright (c) 2023 Quectel Wireless Solution, Co., Ltd. 
+*
+* @copyright Copyright (c) 2023 Quectel Wireless Solution, Co., Ltd.
 * All Rights Reserved. Quectel Wireless Solution Proprietary and Confidential.
-* 
+*
 * @par EDIT HISTORY FOR MODULE
 * <table>
 * <tr><th>Date <th>Version <th>Author <th>Description
@@ -14,23 +14,22 @@
 * </table>
 **********************************************************************/
 
+#include <windows.h>
+#include <stdio.h>
 #include "qosa_def.h"
 #include "qosa_system.h"
 #include "qosa_log.h"
-
 #include "hal_uart.h"
 
-#include <windows.h>
-#include <stdio.h>
 
-#define COM_PORT  "\\\\.\\COM10"      // 串口名称
-#define BAUD_RATE CBR_115200          // 波特率（115200）
-#define DATABITS  8                   // 数据位
-#define STOPBITS  ONESTOPBIT          // 停止位
-#define PARITY    NOPARITY            // 校验位
+#define COM_PORT    "\\\\.\\"AT_UART""  // 串口名称
+#define BAUD_RATE   CBR_115200          // 波特率（115200）
+#define DATABITS    8                   // 数据位
+#define STOPBITS    ONESTOPBIT          // 停止位
+#define PARITY      NOPARITY            // 校验位
 
-static HANDLE           g_hComm;      // 串口句柄
-static DWORD            g_dwEvtMask;  // 事件掩码
+static HANDLE           g_hComm;        // 串口句柄
+static DWORD            g_dwEvtMask;    // 事件掩码
 static event_callback_t g_callback = NULL;
 static osa_task_t       g_uart_task = NULL;
 

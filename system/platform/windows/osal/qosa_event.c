@@ -60,8 +60,8 @@ int qosa_event_delete(osa_event_t eventRef)
     if (!e) 
         return QOSA_ERROR_PARAM_INVALID;
 
-    qosa_sem_delete(&e->event_sem);
-    qosa_mutex_delete(&e->event_mutex);
+    qosa_sem_delete(e->event_sem);
+    qosa_mutex_delete(e->event_mutex);
     free(e);
 
     return QOSA_OK;

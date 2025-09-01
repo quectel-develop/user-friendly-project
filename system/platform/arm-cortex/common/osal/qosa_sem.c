@@ -13,6 +13,7 @@
 * <tr><td>2024-12-23 <td>1.0 <td>Larson.Li <td> Init
 * </table>
 **********************************************************************/
+#include "FreeRTOS.h"
 #include "qosa_def.h"
 #include "qosa_system.h"
 

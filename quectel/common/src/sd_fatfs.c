@@ -9,25 +9,27 @@
 #include "sd_fatfs.h"
 #include "debug_service.h"
 #include "fatfs.h"
-#include "common_hal.h"
+#include "hal_common.h"
 #include "qosa_log.h"
 
-// #define FF_MAX_SS 512
- extern SD_HandleTypeDef hsd;
-//  BYTE work[FF_MAX_SS] = {0};
-void SD_hardware_init(void)
+
+extern SD_HandleTypeDef hsd;
+static bool s_is_init = false;
+
+
+void ql_sd_hardware_init(void)
 {
 	HAL_GPIO_WritePin(UFP_SD_EN_PORT, UFP_SD_EN_PIN, GPIO_PIN_SET);
 }
 
-void SD_hardware_deinit(void)
+void ql_sd_hardware_deinit(void)
 {
 	HAL_GPIO_WritePin(UFP_SD_EN_PORT, UFP_SD_EN_PIN, GPIO_PIN_RESET);
 }
 
-bool SD_INIT(void)
+bool ql_sd_init(void)
 {
-	uint8_t RES;
+	FRESULT RES;
 	uint64_t total_bytes;
 	uint32_t total_gb;
 	uint32_t decimal_part;
@@ -39,10 +41,9 @@ bool SD_INIT(void)
 		return QOSA_FALSE;
 	}
 	LOG_D("SD card detected !");
-	// SD_hardware_init();	// already enabled in MX_SDIO_SD_Init();
 
 	RES = f_mount(&SDFatFS, (TCHAR const*)SDPath, 1);
-	if(RES ==QOSA_OK)
+	if(RES == FR_OK)
 	{
 		/* FatFs Initialization Error */
 		LOG_D("Fat System OK");
@@ -65,16 +66,17 @@ bool SD_INIT(void)
 				decimal_part = (total_bytes % (1024 * 1024 * 1024)) / (1024 * 1024) * 100 / 1024;
 				LOG_D("FreeSpace     : %lu.%02uGB", total_gb, decimal_part);
 			}
-			LOG_D("CardBlockSize : %d", hsd.SdCard.BlockSize);   // Physical block size 
+			LOG_D("CardBlockSize : %d", hsd.SdCard.BlockSize);   // Physical block size
 			LOG_D("LogBlockNbr   : %d", hsd.SdCard.LogBlockNbr);	// Number of logical blocks
 			LOG_D("LogBlockSize  : %d", hsd.SdCard.LogBlockSize);// Logical block size
 			LOG_D("RCA           : 0x%X", hsd.SdCard.RelCardAdd);  // Relative Card Address
 			LOG_D("CardType      : %d (0: <= 2GB; 1: 2GB-32GB; 2: >32GB)", hsd.SdCard.CardType);    // Card type
-			// 
+			//
 			HAL_SD_CardCIDTypeDef sdcard_cid;
 			HAL_SD_GetCardCID(&hsd,&sdcard_cid);
 			LOG_D("ManufacturerID: 0x%02x (0x03: SanDisk; 0x1A: ADATA; 0x1B: Samsung; 0x41: Kingston)", sdcard_cid.ManufacturerID); // Manufacturer ID
 			LOG_I("sd card mount success! ");
+			s_is_init = true;
 			return QOSA_TRUE;
 		}
 	}
@@ -83,18 +85,24 @@ bool SD_INIT(void)
 	return QOSA_FALSE;
 }
 
-void SD_DEINIT(void)
+void ql_sd_deinit(void)
 {
 	uint8_t RES;
 
 	RES = f_mount(NULL, "0:", 1);
-	SD_hardware_deinit();
+	ql_sd_hardware_deinit();
 	if(RES ==FR_OK)
 	{
 		/* FatFs Initialization Error */
 		LOG_I("sd card umount success!");
 	}
 	MX_FATFS_DeInit();
+	s_is_init = false;
+}
+
+bool ql_sd_is_init(void)
+{
+	return s_is_init;
 }
 
 uint64_t get_sdcard_free_space(void)
@@ -109,7 +117,7 @@ uint64_t get_sdcard_free_space(void)
 }
 
 #else
-void SD_hardware_init(void)
+void ql_sd_hardware_init(void)
 {
 }
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_TFCARD__ */

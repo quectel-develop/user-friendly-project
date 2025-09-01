@@ -1,8 +1,6 @@
 #include "QuectelConfig.h"
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_PSM__
 #include <at.h>
-#include "at_socket.h"
-#include "ql_socket.h"
 #include "ql_net.h"
 #include "ql_psm.h"
 #include "qosa_log.h"
@@ -11,282 +9,208 @@
 #include "windows.h"
 #elif __linux__
 #else
-#include "cmsis_os.h"
+// #include "cmsis_os2.h"
 #endif
 
-extern psm_setting user_psm_setting = {NULL};
-extern psm_threshold_setting user_psm_threshold_setting = {NULL};
-extern psm_ext_cfg user_psm_ext_cfg = {NULL};
-
-int ql_psm_settings_read()
+/*
+ * @brief Convert seconds to TAU format
+ * @param[in] seconds
+ * @return TAU byte value
+*/
+static uint8_t ql_convert_seconds_to_TAU_format(uint32_t seconds)
 {
-	// Create an AT response object with a 3000ms timeout and space for 4 lines.
-	at_response_t resp = at_create_resp(64, 0, (3000));
-	if (!resp) {
-		LOG_E("No memory for response object.\n");
-		return -1;
-	}
-//	psm_setting psm_setting_t;
-	// Execute the AT command to get PSM settings
-	at_exec_cmd(resp, "AT+CPSMS?");
-	LOG_I("AT+CPSMS?\n");
-	for (int i = 0; i < resp->line_counts; i++) {
-		const char *line = at_resp_get_line(resp, i + 1);
-		LOG_I("query_resp line [%d]: %s", i, line);
-		if (i == 1)
-		{
-			sscanf(line, "+CPSMS: %d,,,\"%d\",\"%d\" ", &user_psm_setting.Mode, &user_psm_setting.Requested_Periodic_TAU, &user_psm_setting.Requested_Active_Time);
-		}
-
-		// Check if there is a "+CME ERROR" line.
-		if (strstr(line, "ERROR") != NULL) {
-			sscanf(line, "ERROR");
-			at_delete_resp(resp);
-			return -1;
-		}
-	}
-
-
-	return 0;
+    uint8_t unit_bits = 0;
+    uint8_t timer_value = 0;
+    
+    if (seconds <= 62)
+    {
+        unit_bits = 0x03; timer_value = (seconds + 1) / 2;
+    }
+    else if (seconds <= 930)
+    {
+        unit_bits = 0x04; timer_value = (seconds + 15) / 30;
+    }
+    else if (seconds <= 1860)
+    {
+        unit_bits = 0x05; timer_value = (seconds + 30) / 60;
+    }
+    else if (seconds <= 18600)
+    {
+        unit_bits = 0x00; timer_value = (seconds + 300) / 600;
+    }
+    else if (seconds <= 111600)
+    {
+        unit_bits = 0x01; timer_value = (seconds + 1800) / 3600;
+    }
+    else if (seconds <= 1116000)
+    {
+        unit_bits = 0x02; timer_value = (seconds + 18000) / 36000;
+    }
+    else
+    {
+        unit_bits = 0x02; timer_value = 31;
+    }
+    
+    return (unit_bits << 5) | (timer_value & 0x1F);
 }
 
-int ql_psm_settings_write(psm_setting *val)
+/**
+ * @brief Convert seconds to Active time format
+ * @param seconds
+ * @return Active byte value
+ */
+static uint8_t ql_convert_seconds_to_Active_format(uint32_t seconds)
 {
-	// Create an AT response object with a 3000ms timeout and space for 4 lines.
-	at_response_t resp = at_create_resp(64, 0, (3000));
-	if (!resp) {
-		LOG_E("No memory for response object.\n");
-		return -1;
-	}
-
-	// Execute the AT command to set PSM settings
-	at_exec_cmd(resp, "AT+CPSMS=%d,,,\"%08d\",\"%08d\"", val->Mode, val->Requested_Periodic_TAU, val->Requested_Active_Time);
-	for (int i = 0; i < resp->line_counts; i++) {
-		const char *line = at_resp_get_line(resp, i + 1);
-		LOG_I("query_resp line [%d]: %s", i, line);
-
-		// Check if there is a "+CME ERROR" line.
-		if (strstr(line, "ERROR") != NULL) {
-			sscanf(line, "ERROR");
-			at_delete_resp(resp);
-			return -1;
-		}
-	}
-
-	return 0;
+    // deactivated
+    if (seconds == 0) {
+        return 0xE0; // 11100000 (bits 6-8: 111)
+    }
+    
+    uint8_t unit_bits = 0;
+    uint8_t timer_value = 0;
+    
+    if (seconds <= 62)
+    {
+        unit_bits = 0x00; timer_value = (seconds + 1) / 2;
+    }
+    else if (seconds <= 1860)
+    {
+        unit_bits = 0x01; timer_value = (seconds + 30) / 60;
+    }
+    else if (seconds <= 11160)
+    {
+        unit_bits = 0x02; timer_value = (seconds + 180) / 360;
+    }
+    else
+    {
+        unit_bits = 0x02; timer_value = 31; // 最大值
+    }
+    
+    return (unit_bits << 5) | (timer_value & 0x1F);
 }
 
-int ql_psm_threshold_settings_read()
-{
-	// Create an AT response object with a 3000ms timeout and space for 4 lines.
-	at_response_t resp = at_create_resp(64, 0, (3000));
-	if (!resp) {
-		LOG_E("No memory for response object.\n");
-		return -1;
-	}
-
-	// Execute the AT command to get PSM extented settings
-	at_exec_cmd(resp, "AT+QPSMCFG?");
-	for (int i = 0; i < resp->line_counts; i++) {
-		const char *line = at_resp_get_line(resp, i + 1);
-		LOG_I("query_resp line [%d]: %s", i, line);
-
-		if (i == 1)
-		{
-			sscanf(line, "+QPSMCFG: %d,%d", &user_psm_threshold_setting.threshold, &user_psm_threshold_setting.psm_version);
-		}
-
-		// Check if there is a "+CME ERROR" line.
-		if (strstr(line, "ERROR") != NULL) {
-			sscanf(line, "ERROR");
-			at_delete_resp(resp);
-			return -1;
-		}
-	}
-	return 0;
-}
-
-int ql_psm_threshold_settings_write(psm_threshold_setting *val)
-{
-	// Create an AT response object with a 3000ms timeout and space for 4 lines.
-	at_response_t resp = at_create_resp(64, 0, (3000));
-	if (!resp) {
-		LOG_E("No memory for response object.\n");
-		return -1;
-	}
-
-	// Execute the AT command to set PSM extented settings
-	at_exec_cmd(resp, "AT+QPSMCFG=%d", val->threshold);
-	LOG_I("enable PSM mode");
-	for (int i = 0; i < resp->line_counts; i++) {
-		const char *line = at_resp_get_line(resp, i + 1);
-		LOG_I("query_resp line [%d]: %s", i, line);
-
-		// Check if there is a "+CME ERROR" line.
-		if (strstr(line, "ERROR") != NULL) {
-			sscanf(line, "ERROR");
-			at_delete_resp(resp);
-			return -1;
-		}
-	}
-	ql_psm_threshold_settings_read();
-	return 0;
-}
-
-int ql_psm_ext_cfg_read()
-{
-	// Create an AT response object with a 3000ms timeout and space for 4 lines.
-	at_response_t resp = at_create_resp(64, 0, (3000));
-	if (!resp) {
-		LOG_E("No memory for response object.\n");
-		return -1;
-	}
-
-	// Execute the AT command to get PSM extented config
-	at_exec_cmd(resp, "AT+QPSMEXTCFG?");
-	for (int i = 0; i < resp->line_counts; i++) {
-		const char *line = at_resp_get_line(resp, i + 1);
-		LOG_I("query_resp line [%d]: %s", i, line);
-
-		if (i == 1)
-		{
-			sscanf(line, "+QPSMEXTCFG: %d,%d,%d,%d,%d,%d", &user_psm_ext_cfg.PSM_opt_mask, &user_psm_ext_cfg.max_oos_full_scans, &user_psm_ext_cfg.PSM_duration_due_to_oos, &user_psm_ext_cfg.PSM_randomization_window, &user_psm_ext_cfg.max_oos_time, &user_psm_ext_cfg.early_wakeup_time);
-			LOG_V(" %d %d %d %d %d %d", user_psm_ext_cfg.PSM_opt_mask, user_psm_ext_cfg.max_oos_full_scans, user_psm_ext_cfg.PSM_duration_due_to_oos, user_psm_ext_cfg.PSM_randomization_window, user_psm_ext_cfg.max_oos_time, user_psm_ext_cfg.early_wakeup_time);
-		}
-
-		// Check if there is a "+CME ERROR" line.
-		if (strstr(line, "ERROR") != NULL) {
-			sscanf(line, "ERROR");
-			at_delete_resp(resp);
-			return -1;
-		}
-	}
-	return 0;
-}
-
-int ql_psm_ext_cfg_write(psm_ext_cfg *val)
-{
-	// Create an AT response object with a 3000ms timeout and space for 4 lines.
-	at_response_t resp = at_create_resp(64, 0, (3000));
-	if (!resp) {
-		LOG_E("No memory for response object.\n");
-		return -1;
-	}
-
-	// Execute the AT command to set PSM extented config
-	at_exec_cmd(resp, "AT+QPSMEXTCFG=%d,%d,%d,%d,%d,%d", val->PSM_opt_mask,val->max_oos_full_scans,val->PSM_duration_due_to_oos,val->PSM_randomization_window,val->max_oos_time,val->early_wakeup_time);
-	LOG_I("enable PSM mode");
-	for (int i = 0; i < resp->line_counts; i++) {
-		const char *line = at_resp_get_line(resp, i + 1);
-		LOG_I("query_resp line [%d]: %s", i, line);
-
-		// Check if there is a "+CME ERROR" line.
-		if (strstr(line, "ERROR") != NULL) {
-			sscanf(line, "ERROR");
-			at_delete_resp(resp);
-			return -1;
-		}
-	}
-	ql_psm_ext_cfg_read();
-	return 0;
-}
-
-int ql_psm_ext_timer_read()
-{
-	// Create an AT response object with a 3000ms timeout and space for 4 lines.
-	at_response_t resp = at_create_resp(64, 0, (3000));
-	if (!resp) {
-		LOG_E("No memory for response object.\n");
-		return -1;
-	}
-
-	// Execute the AT command to get PSM timer
-	at_exec_cmd(resp, "AT+QCFG=\"psm/urc\"");
-	for (int i = 0; i < resp->line_counts; i++) {
-		const char *line = at_resp_get_line(resp, i + 1);
-		LOG_I("query_resp line [%d]: %s", i, line);
-
-		// Check if there is a "+CME ERROR" line.
-		if (strstr(line, "ERROR") != NULL) {
-			sscanf(line, "ERROR");
-			at_delete_resp(resp);
-			return -1;
-		}
-	}
-	return 0;
-}
-int ql_psm_ext_timer_write(bool val)
-{
-	// Create an AT response object with a 3000ms timeout and space for 4 lines.
-	at_response_t resp = at_create_resp(64, 0, (3000));
-	if (!resp) {
-		LOG_E("No memory for response object.\n");
-		return -1;
-	}
-
-	// Execute the AT command to set PSM timer
-	at_exec_cmd(resp, "AT+QCFG=\"psm/urc\",%d", val);
-	for (int i = 0; i < resp->line_counts; i++) {
-		const char *line = at_resp_get_line(resp, i + 1);
-		LOG_I("query_resp line [%d]: %s", i, line);
-
-		// Check if there is a "+CME ERROR" line.
-		if (strstr(line, "ERROR") != NULL) {
-			sscanf(line, "ERROR");
-			at_delete_resp(resp);
-			return -1;
-		}
-	}
-	ql_psm_ext_timer_read();
-	return 0;
-}
-
-void ql_psm_stat()
-{
-	ql_psm_settings_read();
-	ql_psm_threshold_settings_read();
-	ql_psm_ext_cfg_read();
-	ql_psm_ext_timer_read();
-	LOG_I("================================");
-	LOG_I("\t\tPSM Stat");
-	LOG_I("================================");
-
-	if (user_psm_setting.Mode)
+/**
+ * @brief Convert a byte to binary string representation
+ * @param byte_value Input byte value to convert
+ * @param output_str Output buffer for binary string (must be at least 9 bytes)
+ */
+static void ql_convert_byte_to_binary_str(uint8_t byte_value, char *output_str)
+{   
+    for (int i = 7; i >= 0; i--)
 	{
-		LOG_I("PSM Mode is enabled");
-	}
-	else
-	{
-		LOG_I("PSM Mode is disabled");
-	}
-	LOG_I("PSM Mode TAU : %08d", user_psm_setting.Requested_Periodic_TAU);
-	LOG_I("PSM Mode Requested Active Time: %08d", user_psm_setting.Requested_Active_Time);
-	LOG_I("================================");
-	LOG_I("PSM Mode opt mask: %d", user_psm_ext_cfg.PSM_opt_mask);
-	LOG_I("PSM Mode max oos full scans: %d", user_psm_ext_cfg.max_oos_full_scans);
-	LOG_I("PSM Mode duration due to oos: %d", user_psm_ext_cfg.PSM_duration_due_to_oos);
-	LOG_I("PSM Mode randomization window: %d", user_psm_ext_cfg.PSM_randomization_window);
-	LOG_I("PSM Mode max oos time: %d", user_psm_ext_cfg.max_oos_time);
-	LOG_I("PSM Mode early wakeup time: %d", user_psm_ext_cfg.early_wakeup_time);
-	LOG_I("================================");
-	LOG_I("PSM threshold: %d", user_psm_threshold_setting.threshold);
-	LOG_I("PSM version: %d", user_psm_threshold_setting.psm_version);
-	LOG_I("================================");
+        output_str[7 - i] = ((byte_value >> i) & 0x01) ? '1' : '0';
+    }
+    output_str[8] = '\0';
 }
 
-void ql_psm_example()
+/**
+ * @brief Convert TAU binary string to seconds
+ * @param binary_str 8-character binary string
+ * @return Corresponding time in seconds
+ */
+uint32_t convert_TAU_binary_to_seconds(const char *binary_str)
 {
-	ql_psm_settings_read();
-	ql_psm_threshold_settings_read();
-	ql_psm_ext_cfg_read();
-	ql_psm_ext_timer_read();
-
-	ql_psm_settings_write(&user_psm_setting);
-	ql_psm_threshold_settings_write(&user_psm_threshold_setting);
-	ql_psm_ext_cfg_write(&user_psm_ext_cfg);
-	ql_psm_ext_timer_write(true);
-
-	ql_psm_stat();
+    uint8_t byte_value = (uint8_t)strtol(binary_str, NULL, 2);
+    uint8_t unit_bits = (byte_value & 0xE0) >> 5;
+    uint8_t timer_value = byte_value & 0x1F;
+    
+    switch (unit_bits)
+	{
+	case 0x03: // 011: 2 second units
+		return timer_value * 2;
+	case 0x04: // 100: 30 second units  
+		return timer_value * 30;
+	case 0x05: // 101: 1 minute units
+		return timer_value * 60;
+	case 0x00: // 000: 10 minute units
+		return timer_value * 600;
+	case 0x01: // 001: 1 hour units
+		return timer_value * 3600;
+	case 0x02: // 010: 10 hour units
+		return timer_value * 36000;
+	default:
+		return 0;
+    }
 }
+
+/**
+ * @brief Convert Active time binary string to seconds
+ * @param binary_str 8-character binary string
+ * @return Corresponding time in seconds
+ */
+uint32_t convert_Active_binary_to_seconds(const char *binary_str)
+{
+    uint8_t byte_value = (uint8_t)strtol(binary_str, NULL, 2);
+    
+    uint8_t unit_bits = (byte_value & 0xE0) >> 5;
+    uint8_t timer_value = byte_value & 0x1F;
+    
+    // Check if deactivated
+    if (unit_bits == 0x07) // 111
+	{
+        return 0;
+    }
+    
+    switch (unit_bits)
+	{
+        case 0x00: // 000: 2seconds units
+            return timer_value * 2;
+        case 0x01: // 001: 1 minute units
+            return timer_value * 60;
+        case 0x02: // 010: 6 minutes units
+            return timer_value * 360; // 6 × 60 = 360秒
+        default:
+            return 0;
+    }
+}
+
+int ql_psm_settings_write(at_client_t client, ql_psm_setting_s settings)
+{
+	if (settings.Requested_Periodic_TAU < 0|| settings.Requested_Active_Time < 0 )
+	{
+		LOG_E("Invalid PSM settings.");
+		return -1;
+	}
+	char TAU[9] = {0};
+	char Active[9] = {0};
+	uint8_t value = ql_convert_seconds_to_TAU_format(settings.Requested_Periodic_TAU);
+	ql_convert_byte_to_binary_str(value, TAU);
+	value = ql_convert_seconds_to_Active_format(settings.Requested_Active_Time);
+	ql_convert_byte_to_binary_str(value, Active);
+	at_response_t resp = at_create_resp_new(256, 0, (3000), NULL);
+	int ret = at_obj_exec_cmd(client, resp, "AT+CPSMS=%d,,,\"%s\",\"%s\"", settings.Mode, TAU, Active);
+	at_delete_resp(resp);
+	return (ret == 0) ? 0 : -1;
+}
+
+int ql_psm_settings_read(at_client_t client, ql_psm_setting_s *settings)
+{
+	at_response_t resp = at_create_resp_new(256, 0, (3000), NULL);
+	if (at_obj_exec_cmd(client, resp, "AT+CPSMS?") < 0)
+	{
+		at_delete_resp(resp);
+		return -1;
+	}
+	for (int i = 0; i < resp->line_counts; i++)
+	{
+		const char *line = at_resp_get_line(resp, i + 1);
+		int tmp = 0;
+		char TAU[9] = {0};
+		char Active[9] = {0};
+		LOG_I("%s", line);
+        if (sscanf(line, "+CPSMS: %d,,,\"%[^\"]\",\"%[^\"]\"",&tmp, TAU, Active) == 3 || 
+            sscanf(line, "+CPSMS: %d,%*[^,],%*[^,],\"%[^\"]\",\"%[^\"]\"",&tmp, TAU, Active) == 3)
+		{
+			settings->Mode = (bool)tmp;
+			settings->Requested_Periodic_TAU = convert_TAU_binary_to_seconds(TAU);
+			settings->Requested_Active_Time = convert_Active_binary_to_seconds(Active);
+			at_delete_resp(resp);
+			return 0;
+		}
+	}
+	at_delete_resp(resp);
+	return -1;
+}
+
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_PSM__ */
 

@@ -5,7 +5,7 @@
 #ifndef __EXAMPLE_MQTT_H__
 #define __EXAMPLE_MQTT_H__
 
-void example_mqtt_test();
+void example_mqtt();
 
 #endif /* __EXAMPLE_MQTT_H__ */
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_MQTT_S__ */

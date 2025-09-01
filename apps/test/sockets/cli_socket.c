@@ -5,6 +5,10 @@
 #include "ql_net.h"
 #include "qosa_system.h"
 #include "qosa_log.h"
+#include "cli_tcp.h"
+#include "cli_udp.h"
+#include "cli_tcp_server.h"
+#include "cli_udp_server.h"
 
 void cli_socket_get_help(void)
 {
@@ -14,20 +18,18 @@ void cli_socket_get_help(void)
     LOG_I("|                      1: UDP                                                                      |");
     LOG_I("|                      2: TCP SERVER                                                               |");
     LOG_I("|                      3: UDP SERVER                                                               |");
-    LOG_I("|      ip            : ip address                                                                  |");
-    LOG_I("|      port          : port                                                                        |");
-    LOG_I("|      count         : Number of server cyclic forwarding times                                    |");
-    LOG_I("|      interval_ms   : Interval for sending data                                                   |");
-    LOG_I("|    max_connect_num : Max number connect request(only tcp server need set)                        |");
-    LOG_I("|                                                                                                  |");
+    LOG_I("|     ip              : ip address                                                                 |");
+    LOG_I("|     port            : port                                                                       |");
+    LOG_I("|     count           : Number of times the TCP/UDP client sends data                              |");
+    LOG_I("|     interval_ms     : Time interval between TCP/UDP client data transmissions                    |");
+    LOG_I("|     max_connect_num : Max number connect request(only tcp server need set)                       |");
 }
 
-extern quectel_network_t s_network_handle;
+extern ql_net_t s_net_handle;
 static void socket_service_proc(void *argument)
 {
-    int ret = QOSA_OK;
     socket_test_config *config = (socket_test_config *)argument;
-    char *ip = quectel_network_get_ip(s_network_handle);
+    const char *ip = ql_net_get_ip(s_net_handle);
     LOG_I("IP Address: %s", ip);
     LOG_V("%s Start(heap size = %d)\r\n\r\n", __FUNCTION__, qosa_task_get_free_heap_size());
     if (config->type == SOCKET_TCP)
@@ -76,19 +78,25 @@ int cli_socket_test(s32_t argc, char *argv[])
     config.sin_port = atoi(argv[3]);
     config.loop_count = atoi(argv[4]);
     config.loop_interval = atoi(argv[5]);
+    LOG_I("type                : %d", config.type);
+    LOG_I("ip                  : %s", config.sin_addr);
+    LOG_I("port                : %d", config.sin_port);
+    LOG_I("loop_count          : %d", config.loop_count);
+    LOG_I("loop_interval       : %d", config.loop_interval);
     if (argc == 7)
+    {
         config.max_connect_num = atoi(argv[6]);
-    LOG_I("type = %d, ip = %s, port = %d, loop_count = %d, loop_interval = %d, max_connect_num = %d", config.type, config.sin_addr, config.sin_port, config.loop_count, config.loop_interval, config.max_connect_num);
-
+        LOG_I("max_connect_num     : %d", config.max_connect_num);
+    }
 
     // Create net service
-    ret = qosa_task_create(&thread_id, 256 * 20, QOSA_PRIORITY_NORMAL, "user_socket_test", socket_service_proc, (void *)&config);
+    ret = qosa_task_create(&thread_id, 256 * 15, QOSA_PRIORITY_NORMAL, "user_socket_test", socket_service_proc, (void *)&config);
     if (ret != QOSA_OK)
     {
-        LOG_E("thread_id thread could not start!");
+        LOG_E("thread_id thread could not start! %d", qosa_task_get_free_heap_size());
         return -1;
     }
-    LOG_I("%s over(%x, %d, heap size = %d)", __FUNCTION__, thread_id, config.type, qosa_task_get_free_heap_size());
+    return 0;
 }
 
 

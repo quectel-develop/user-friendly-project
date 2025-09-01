@@ -11,6 +11,7 @@
 #include <at.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 #include "qosa_def.h"
 #include "qosa_system.h"
 #include "hal_uart.h"
@@ -31,37 +32,13 @@ void at_print_raw_cmd(const char *name, const char *buf, size_t size)
 
     size_t i, j;
     int index = 0;
-    char buffer[512] = {0};
-
-    // if (g_debug_level > LOG_VERBOSE)
-    //     return;
+    char buffer[128] = {0};
 
     for (i = 0; i < size; i += WIDTH_SIZE)
     {
-        //index += sprintf(buffer, "[AT]                                                                             %s: ", name);
+        index = 0;
+        memset(buffer, 0, sizeof(buffer));
         index += sprintf(buffer, "\t%s: ", name);
-
-        // //rt_kprintf("[D/AT] %s: %04X-%04X: ", name, i, i + WIDTH_SIZE);
-        // for (j = 0; j < WIDTH_SIZE; j++)
-        // {
-        //     if (i + j < size)
-        //     {
-        //         index = sprintf(buffer+index, "%02X ", buf[i + j]);
-        //         //rt_kprintf("%02X ", buf[i + j]);
-        //     }
-        //     else
-        //     {
-        //         //rt_kprintf("   ");
-        //         index = sprintf(buffer+index, "   ");
-        //     }
-        //     if ((j + 1) % 8 == 0)
-        //     {
-        //         //rt_kprintf(" ");
-        //         index = sprintf(buffer+index, "   ");
-        //     }
-        // }
-        // //rt_kprintf("  ");
-        // index = sprintf(buffer+index, "   ");
         for (j = 0; j < WIDTH_SIZE; j++)
         {
             if (i + j < size)
@@ -70,8 +47,6 @@ void at_print_raw_cmd(const char *name, const char *buf, size_t size)
                 index += sprintf(buffer+index, "%c", __is_print(buf[i + j]) ? buf[i + j] : '.');
             }
         }
-        //rt_kprintf("\r\n");
-        // index += sprintf(buffer+index, "\r\n");
         LOG_D("%s", buffer);
     }
 }

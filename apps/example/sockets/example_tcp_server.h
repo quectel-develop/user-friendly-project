@@ -11,7 +11,7 @@ typedef struct {
     int sock_fd;
 }socket_tcp_server_config;
 
-int example_tcp_server_test(short sin_port, char *sin_addr, int max_connect_num, int loop_count, int loop_interval);
+int example_tcp_server_test(short sin_port, char *sin_addr, int max_connect_num);
 
 #endif /* __EXAMPLE_TCP_SERVER_H__ */
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET_TCP_SERVER__ */

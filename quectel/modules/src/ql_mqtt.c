@@ -9,26 +9,26 @@
 static bool s_global_mqtt_init = false;
 static const char* s_mqtt_client_option_strings[] =
 {
-    [QT_MQTT_OPT_PDPCID]         = "pdpcid",
-    [QT_MQTT_OPT_WILL]           = "will",
-    [QT_MQTT_OPT_TIMEOUT]        = "timeout",
-    [QT_MQTT_OPT_CLEAN_SESSION]  = "session",
-    [QT_MQTT_OPT_KEEP_ALIVETIME] = "keepalive",
-    [QT_MQTT_OPT_SSL_ENABLE]     = "ssl",
-    [QT_MQTT_OPT_ALI_AUTH]       = "aliauth",
-    [QT_MQTT_OPT_RECV_MODE]       = "recv/mode"
+    [QL_MQTT_OPT_CONTEXT_ID]         = "pdpcid",
+    [QL_MQTT_OPT_WILL]           = "will",
+    [QL_MQTT_OPT_TIMEOUT]        = "timeout",
+    [QL_MQTT_OPT_CLEAN_SESSION]  = "session",
+    [QL_MQTT_OPT_KEEP_ALIVETIME] = "keepalive",
+    [QL_MQTT_OPT_SSL_ENABLE]     = "ssl",
+    [QL_MQTT_OPT_ALI_AUTH]       = "aliauth",
+    [QL_MQTT_OPT_RECV_MODE]       = "recv/mode"
 };
 
-typedef struct quectel_mqtt_client_instance
+typedef struct ql_mqtt_instance
 {
-    quectel_mqtt_client_t handle;
+    ql_mqtt_t handle;
     bool used;
-} quectel_mqtt_client_instance_s;
+} ql_mqtt_instance_s;
 
-static quectel_mqtt_client_instance_s s_mqtt_client_indices[MQTT_MAX_CLIENT_IDX] = {false};
+static ql_mqtt_instance_s s_mqtt_client_indices[MQTT_MAX_CLIENT_IDX] = {0};
 static osa_mutex_t s_idx_lock = NULL; // never delete
 
-static int quectel_mqtt_take_vaild_idx(quectel_mqtt_client_t handle)
+static int ql_mqtt_take_vaild_idx(ql_mqtt_t handle)
 {
     qosa_mutex_lock(s_idx_lock, QOSA_WAIT_FOREVER);
     for (int i = 0; i < MQTT_MAX_CLIENT_IDX; i++)
@@ -44,7 +44,7 @@ static int quectel_mqtt_take_vaild_idx(quectel_mqtt_client_t handle)
     qosa_mutex_unlock(s_idx_lock);
     return -1;
 }
-static void quectel_mqtt_release_idx(int idx)
+static void ql_mqtt_release_idx(int idx)
 {
     qosa_mutex_lock(s_idx_lock, QOSA_WAIT_FOREVER);
     if (idx >= 0 && idx < MQTT_MAX_CLIENT_IDX)
@@ -58,7 +58,7 @@ static void quectel_mqtt_release_idx(int idx)
  * @param idx index
  * @return success handle，otherwise NULL
  */
-static quectel_mqtt_client_t quectel_mqtt_find_handle_by_idx(int idx)
+static ql_mqtt_t ql_mqtt_find_handle_by_idx(int idx)
 {
     qosa_mutex_lock(s_idx_lock, QOSA_WAIT_FOREVER);
     if (idx >= 0 && idx < MQTT_MAX_CLIENT_IDX &&
@@ -71,71 +71,72 @@ static quectel_mqtt_client_t quectel_mqtt_find_handle_by_idx(int idx)
     return NULL;
 }
 
-static void quectel_mqtt_urc_open(struct at_client *client, const char *data, size_t size, void *arg)
+static void ql_mqtt_urc_open(struct at_client *client, const char *data, size_t size, void *arg)
 {
     int client_idx = -1;
     int err = 0;
 	sscanf(data, "+QMTOPEN: %d,%d", &client_idx, &err);
-    quectel_mqtt_client_t handle = quectel_mqtt_find_handle_by_idx(client_idx);
+    ql_mqtt_t handle = ql_mqtt_find_handle_by_idx(client_idx);
     if (NULL == handle)
         return;
     if (err != 0)
-        handle->status = QT_MQTT_STATUS_CLOSED;
+        handle->status = QL_MQTT_STATUS_CLOSED;
     else
-        handle->status = QT_MQTT_STATUS_OPEN;
+        handle->status = QL_MQTT_STATUS_OPEN;
     qosa_sem_release(handle->sem);
 }
 
-static void quectel_mqtt_urc_connect(struct at_client *client, const char *data, size_t size, void *arg)
+static void ql_mqtt_urc_connect(struct at_client *client, const char *data, size_t size, void *arg)
 {
     int client_idx = -1;
     int err = 0;
 	sscanf(data, "+QMTCONN: %d,%d", &client_idx, &err);
-    quectel_mqtt_client_t handle = quectel_mqtt_find_handle_by_idx(client_idx);
+    ql_mqtt_t handle = ql_mqtt_find_handle_by_idx(client_idx);
     if (NULL == handle)
         return;
     if (0 == err)
-        handle->status = QT_MQTT_STATUS_CONNECTED;
+        handle->status = QL_MQTT_STATUS_CONNECTED;
     qosa_sem_release(handle->sem);
 }
 
-static void quectel_mqtt_urc_disconnect(struct at_client *client, const char *data, size_t size, void *arg)
+static void ql_mqtt_urc_disconnect(struct at_client *client, const char *data, size_t size, void *arg)
 {
     int client_idx = -1;
     int err = 0;
 	sscanf(data, "+QMTDISC: %d,%d", &client_idx, &err);
-    quectel_mqtt_client_t handle = quectel_mqtt_find_handle_by_idx(client_idx);
+    ql_mqtt_t handle = ql_mqtt_find_handle_by_idx(client_idx);
     if (NULL == handle)
         return;
     if (0 == err)
-        handle->status = QT_MQTT_STATUS_DISCONNECTED;
-    // qosa_sem_release(handle->sem);
+        handle->status = QL_MQTT_STATUS_DISCONNECTED;
+    qosa_sem_release(handle->sem);
 }
 
-static void quectel_mqtt_urc_close(struct at_client *client, const char *data, size_t size, void *arg)
+static void ql_mqtt_urc_close(struct at_client *client, const char *data, size_t size, void *arg)
 {
     int client_idx = -1;
     int err = 0;
 	sscanf(data, "+QMTCLOSE: %d,%d", &client_idx, &err);
-    quectel_mqtt_client_t handle = quectel_mqtt_find_handle_by_idx(client_idx);
+    ql_mqtt_t handle = ql_mqtt_find_handle_by_idx(client_idx);
     if (NULL == handle)
         return;
-    handle->status = QT_MQTT_STATUS_CLOSED;
+    handle->status = QL_MQTT_STATUS_CLOSED;
 }
 
-static void quectel_mqtt_urc_stat(struct at_client *client, const char *data, size_t size, void *arg)
+static void ql_mqtt_urc_stat(struct at_client *client, const char *data, size_t size, void *arg)
 {
     int client_idx = -1;
     int err = 0;
 	sscanf(data, "+QMTSTAT: %d,%d", &client_idx, &err);
-    quectel_mqtt_client_t handle = quectel_mqtt_find_handle_by_idx(client_idx);
+    ql_mqtt_t handle = ql_mqtt_find_handle_by_idx(client_idx);
     if (NULL == handle)
         return;
     if (5 == err || 1 == err)
-        qosa_sem_release(handle->sem);
+        handle->status = QL_MQTT_STATUS_CLOSED;
+    qosa_sem_release(handle->sem);
 }
 
-static void quectel_mqtt_urc_pub(struct at_client *client, const char *data, size_t size, void *arg)
+static void ql_mqtt_urc_pub(struct at_client *client, const char *data, size_t size, void *arg)
 {
     int client_idx = -1;
     int msg_id = -1;
@@ -149,13 +150,13 @@ static void quectel_mqtt_urc_pub(struct at_client *client, const char *data, siz
             sscanf(data + pos + 1, "%d", &value);
         }
     }
-    quectel_mqtt_client_t handle = quectel_mqtt_find_handle_by_idx(client_idx);
+    ql_mqtt_t handle = ql_mqtt_find_handle_by_idx(client_idx);
     if (NULL == handle)
         return;
     qosa_sem_release(handle->sem);
 }
 
-static void quectel_mqtt_urc_sub(struct at_client *client, const char *data, size_t size, void *arg)
+static void ql_mqtt_urc_sub(struct at_client *client, const char *data, size_t size, void *arg)
 {
     int client_idx = -1;
     int msg_id = -1;
@@ -169,13 +170,13 @@ static void quectel_mqtt_urc_sub(struct at_client *client, const char *data, siz
             sscanf(data + pos + 1, "%d", &value);
         }
     }
-    quectel_mqtt_client_t handle = quectel_mqtt_find_handle_by_idx(client_idx);
+    ql_mqtt_t handle = ql_mqtt_find_handle_by_idx(client_idx);
     if (NULL == handle)
         return;
     qosa_sem_release(handle->sem);
 }
 
-static void quectel_mqtt_urc_recv(struct at_client *client, const char *data, size_t size, void *arg)
+static void ql_mqtt_urc_recv(struct at_client *client, const char *data, size_t size, void *arg)
 {
     int client_idx = -1;
     // int msg_id = -1;
@@ -183,7 +184,7 @@ static void quectel_mqtt_urc_recv(struct at_client *client, const char *data, si
 	size_t msg_len;
 	char tmp[4];
 	char *msg;
-    quectel_mqtt_client_t handle = NULL;
+    ql_mqtt_t handle = NULL;
 	char *data_begin = strstr(data, ": ") + 2;
 	char *data_end = strstr(data_begin, ",");
 	memset(tmp, 0, 4);
@@ -213,7 +214,7 @@ static void quectel_mqtt_urc_recv(struct at_client *client, const char *data, si
 	*data_end = 0;
 	msg = data_begin;
 
-    handle = quectel_mqtt_find_handle_by_idx(client_idx);
+    handle = ql_mqtt_find_handle_by_idx(client_idx);
     if (NULL == handle)
         return;
     if (handle->sub_cb != NULL)
@@ -222,26 +223,26 @@ static void quectel_mqtt_urc_recv(struct at_client *client, const char *data, si
 
 static const struct at_urc s_mqtt_urc_table[] =
 {
-	{"+QMTOPEN:", "\r\n", quectel_mqtt_urc_open},
-	{"+QMTCONN:", "\r\n", quectel_mqtt_urc_connect},
-	{"+QMTDISC:", "\r\n", quectel_mqtt_urc_disconnect},
-    {"+QMTCLOSE:", "\r\n", quectel_mqtt_urc_close},
-	{"+QMTSTAT:", "\r\n", quectel_mqtt_urc_stat},
-	{"+QMTPUB:", "\r\n", quectel_mqtt_urc_pub},
-	{"+QMTSUB:", "\r\n", quectel_mqtt_urc_sub},
-	{"+QMTRECV:", "\r\n", quectel_mqtt_urc_recv},
+	{"+QMTOPEN:", "\r\n", ql_mqtt_urc_open},
+	{"+QMTCONN:", "\r\n", ql_mqtt_urc_connect},
+	{"+QMTDISC:", "\r\n", ql_mqtt_urc_disconnect},
+    {"+QMTCLOSE:", "\r\n", ql_mqtt_urc_close},
+	{"+QMTSTAT:", "\r\n", ql_mqtt_urc_stat},
+	{"+QMTPUB:", "\r\n", ql_mqtt_urc_pub},
+	{"+QMTSUB:", "\r\n", ql_mqtt_urc_sub},
+	{"+QMTRECV:", "\r\n", ql_mqtt_urc_recv},
 };
 
-quectel_mqtt_client_t quectel_mqtt_client_create(at_client_t client)
+ql_mqtt_t ql_mqtt_create(at_client_t client)
 {
-    quectel_mqtt_client_t handle = (quectel_mqtt_client_t)malloc(sizeof(quectel_mqtt_client_s));
+    ql_mqtt_t handle = (ql_mqtt_t)malloc(sizeof(ql_mqtt_s));
     if (NULL == handle)
     {
-        LOG_E("no memory for AT client response object.");
+        LOG_E("no memory for mqtt client.");
         return NULL;
     }
     handle->client = client;
-    handle->client_idx = quectel_mqtt_take_vaild_idx(handle);
+    handle->client_idx = ql_mqtt_take_vaild_idx(handle);
     if (handle->client_idx < 0 || handle->client_idx > MQTT_MAX_CLIENT_IDX)
     {
         LOG_E("no available client index.");
@@ -255,7 +256,9 @@ quectel_mqtt_client_t quectel_mqtt_client_create(at_client_t client)
         s_global_mqtt_init = true;
     }
     handle->mid = 1;
-    handle->status = QT_MQTT_STATUS_CLOSED;
+    handle->pkt_timeout = 5;
+    handle->retry_times = 3;
+    handle->status = QL_MQTT_STATUS_CLOSED;
     handle->ssl.sslenble = 0;
     handle->ssl.ssltype = 0;
     handle->ssl.sslctxid = 0;
@@ -264,28 +267,24 @@ quectel_mqtt_client_t quectel_mqtt_client_create(at_client_t client)
     handle->ssl.sslversion = SSL_VERSION_ALL;
     qosa_sem_create(&handle->sem, 0);
     qosa_mutex_create(&handle->lock);
-    quectel_mqtt_setopt(handle, QT_MQTT_OPT_RECV_MODE, true);
-    qt_mqtt_ssl_options_s options;
-    options.ssl_ctx_id = 0;
-    options.ssl_enable = false;
-    quectel_mqtt_setopt(handle, QT_MQTT_OPT_SSL_ENABLE, &options);
+    ql_mqtt_setopt(handle, QL_MQTT_OPT_RECV_MODE, true);
     return handle;
 }
 
-bool quectel_mqtt_setopt(quectel_mqtt_client_t handle, QtMqttClientOption option, ...)
+bool ql_mqtt_setopt(ql_mqtt_t handle, QL_MQTT_OPTION_E option, ...)
 {
     va_list arg;
     at_response_t resp = NULL;
     bool ret = false;
     char *option_content = NULL;
     if (NULL == handle)
-        return QT_MQTT_ERR_NOINIT;
+        return QL_MQTT_ERR_NOINIT;
     resp = at_create_resp_new(256, 0, 200, handle);
     va_start(arg, option);
 
     switch (option)
     {
-        case QT_MQTT_OPT_PDPCID:
+        case QL_MQTT_OPT_CONTEXT_ID:
         {
             uint8_t value = (uint8_t)va_arg(arg, int);
             if (value < 1 || value > 16)
@@ -295,7 +294,7 @@ bool quectel_mqtt_setopt(quectel_mqtt_client_t handle, QtMqttClientOption option
             ret = true;
             break;
         }
-        case QT_MQTT_OPT_WILL:
+        case QL_MQTT_OPT_WILL:
         {
             qt_mqtt_will_options_s *will = va_arg(arg, qt_mqtt_will_options_s*);
             if (NULL == will)
@@ -308,18 +307,20 @@ bool quectel_mqtt_setopt(quectel_mqtt_client_t handle, QtMqttClientOption option
             ret = true;
             break;
         }
-        case QT_MQTT_OPT_TIMEOUT:
+        case QL_MQTT_OPT_TIMEOUT:
         {
             qt_mqtt_timeout_options_s *timeout = va_arg(arg, qt_mqtt_timeout_options_s*);
             if (NULL == timeout || timeout->pkt_timeout < 1|| timeout->pkt_timeout > 60
                                 || timeout->retry_times < 0 || timeout->retry_times > 10)
                 break;
+            handle->pkt_timeout = timeout->pkt_timeout;
+            handle->retry_times = timeout->retry_times;
             option_content = (char*)malloc(16);
             snprintf(option_content, 16, "%d,%d,%d", timeout->pkt_timeout, timeout->retry_times, timeout->timeout_notice);
             ret = true;
             break;
         }
-        case QT_MQTT_OPT_CLEAN_SESSION:
+        case QL_MQTT_OPT_CLEAN_SESSION:
         {
             bool value = (bool)va_arg(arg, int);
             option_content = (char*)malloc(4);
@@ -327,7 +328,7 @@ bool quectel_mqtt_setopt(quectel_mqtt_client_t handle, QtMqttClientOption option
             ret = true;
             break;
         }
-        case QT_MQTT_OPT_KEEP_ALIVETIME:
+        case QL_MQTT_OPT_KEEP_ALIVETIME:
         {
             int value = va_arg(arg, int);
             if (value < 0 || value > 3600)
@@ -337,7 +338,7 @@ bool quectel_mqtt_setopt(quectel_mqtt_client_t handle, QtMqttClientOption option
             ret = true;
             break;
         }
-        case QT_MQTT_OPT_SSL_ENABLE:
+        case QL_MQTT_OPT_SSL_ENABLE:
         {
             qt_mqtt_ssl_options_s *ssl = va_arg(arg, qt_mqtt_ssl_options_s*);
             if (NULL == ssl || (ssl->ssl_enable && (ssl->ssl_ctx_id > 5 || ssl->ssl_ctx_id < 0)))
@@ -347,7 +348,7 @@ bool quectel_mqtt_setopt(quectel_mqtt_client_t handle, QtMqttClientOption option
             ret = true;
             break;
         }
-        case QT_MQTT_OPT_ALI_AUTH:
+        case QL_MQTT_OPT_ALI_AUTH:
         {
             qt_mqtt_ali_auth_options_s *auth = va_arg(arg, qt_mqtt_ali_auth_options_s*);
             if (NULL == auth || NULL == auth->product_key || NULL == auth->device_name || NULL == auth->device_secret)
@@ -357,7 +358,7 @@ bool quectel_mqtt_setopt(quectel_mqtt_client_t handle, QtMqttClientOption option
             ret = true;
             break;
         }
-        case QT_MQTT_OPT_RECV_MODE:
+        case QL_MQTT_OPT_RECV_MODE:
         {
             bool value = (bool)va_arg(arg, int);
             option_content = (char*)malloc(4);
@@ -365,12 +366,12 @@ bool quectel_mqtt_setopt(quectel_mqtt_client_t handle, QtMqttClientOption option
             ret = true;
             break;
         }
-        case QT_MQTT_OPT_SUB_CALLBACK:
-            handle->sub_cb = va_arg(arg, quectel_sub_cb_func);
+        case QL_MQTT_OPT_SUB_CALLBACK:
+            handle->sub_cb = va_arg(arg, ql_sub_cb_func);
             at_delete_resp(resp);
             va_end(arg);
             return true;
-        case QT_MQTT_OPT_USER_DATA:
+        case QL_MQTT_OPT_USER_DATA:
             handle->user_data = va_arg(arg, void*);
             at_delete_resp(resp);
             va_end(arg);
@@ -392,35 +393,46 @@ bool quectel_mqtt_setopt(quectel_mqtt_client_t handle, QtMqttClientOption option
     return ret;
 }
 
-void quectel_mqtt_set_ssl(quectel_mqtt_client_t handle, ql_SSL_Config config)
+bool ql_mqtt_set_ssl(ql_mqtt_t handle, ql_SSL_Config config)
 {
     handle->ssl = config;
     qt_mqtt_ssl_options_s options;
     options.ssl_ctx_id = config.sslctxid;
     options.ssl_enable = config.sslenble;
-    handle->ssl.cacert_path = "mqtt_ca.pem";
-    handle->ssl.clientcert_path = "mqtt_user.pem";
-    handle->ssl.clientkey_path = "mqtt_user_key.pem";
-    quectel_mqtt_setopt(handle, QT_MQTT_OPT_SSL_ENABLE, &options);
-    configure_ssl(&handle->ssl);
+    if (NULL == handle->ssl.cacert_dst_path)
+        handle->ssl.cacert_dst_path = "mqtt_ca.pem";
+    if (NULL == handle->ssl.clientcert_dst_path)
+        handle->ssl.clientcert_dst_path = "mqtt_user.pem";
+    if (NULL == handle->ssl.clientkey_dst_path)
+        handle->ssl.clientkey_dst_path = "mqtt_user_key.pem";
+    handle->ssl.client = handle->client;
+    ql_mqtt_setopt(handle, QL_MQTT_OPT_SSL_ENABLE, &options);
+    return (configure_ssl(&handle->ssl) == 0) ? true : false;
 }
 
-QtMqttErrCode quectel_mqtt_connect(quectel_mqtt_client_t handle, const char* server, int port, const char* username, const char* password)
+QL_MQTT_ERR_CODE_E ql_mqtt_connect(ql_mqtt_t handle, const char* server, int port, const char* username, const char* password)
 {
     if (NULL == handle)
-        return QT_MQTT_ERR_NOINIT;
+        return QL_MQTT_ERR_NOINIT;
     int ret = -1;
 
+    if (!handle->ssl.sslenble)
+    {
+        qt_mqtt_ssl_options_s options;
+        options.ssl_ctx_id = 0;
+        options.ssl_enable = false;
+        ql_mqtt_setopt(handle, QL_MQTT_OPT_SSL_ENABLE, &options);
+    }
     at_response_t resp = at_create_resp_new(128, 0, 3000, handle);
 	if (at_obj_exec_cmd(handle->client, resp, "AT+QMTOPEN=%d,\"%s\",%d", handle->client_idx, server, port) < 0)
     {
         at_delete_resp(resp);
-        return QT_MQTT_ERR_OPEN;
+        return QL_MQTT_ERR_OPEN;
     }
-    qosa_sem_wait(handle->sem, 20000);
+    qosa_sem_wait(handle->sem, 121 * 1000);
     at_delete_resp(resp);
-    if (handle->status != QT_MQTT_STATUS_OPEN)
-        return QT_MQTT_ERR_OPEN;
+    if (handle->status != QL_MQTT_STATUS_OPEN)
+        return QL_MQTT_ERR_OPEN;
 
     resp = at_create_resp_new(128, 0, 3000, handle);
     if (NULL == username || NULL == password)
@@ -434,22 +446,30 @@ QtMqttErrCode quectel_mqtt_connect(quectel_mqtt_client_t handle, const char* ser
     if (ret < 0)
     {
         at_delete_resp(resp);
-        return QT_MQTT_ERR_CONNECT;
+        return QL_MQTT_ERR_CONNECT;
     }
-    qosa_sem_wait(handle->sem, 20000);
+    qosa_sem_wait(handle->sem, (handle->pkt_timeout + 1) * 1000);
     at_delete_resp(resp);
-    if (handle->status != QT_MQTT_STATUS_CONNECTED)
-        return QT_MQTT_ERR_CONNECT;
-    return QT_MQTT_OK;
+    if (handle->status != QL_MQTT_STATUS_CONNECTED)
+        return QL_MQTT_ERR_CONNECT;
+    return QL_MQTT_OK;
 }
 
-void quectel_mqtt_disconnect(quectel_mqtt_client_t handle)
+void ql_mqtt_disconnect(ql_mqtt_t handle)
 {
     if (NULL == handle)
         return;
+    if (handle->status == QL_MQTT_STATUS_CLOSED)
+        return;
     at_response_t resp = at_create_resp_new(128, 0, 3000, handle);
+    handle->status = QL_MQTT_STATUS_DISCONNECTING;
     at_obj_exec_cmd(handle->client, resp, "AT+QMTDISC=%d", handle->client_idx);
-    if (qosa_sem_wait(handle->sem, 5 * 1000) != QOSA_OK)
+    qosa_sem_wait(handle->sem, 31 * 1000);// wait disconnect
+    if (handle->status == QL_MQTT_STATUS_DISCONNECTED)
+    {
+        qosa_sem_wait(handle->sem, 180 * 1000);// wait stat
+    }
+    if (handle->status != QL_MQTT_STATUS_CLOSED) 
     {
         resp = at_resp_set_info_new(resp, 128, 0, 3000, handle);
         at_obj_exec_cmd(handle->client, resp, "AT+QMTCLOSE=%d", handle->client_idx);
@@ -457,10 +477,15 @@ void quectel_mqtt_disconnect(quectel_mqtt_client_t handle)
     at_delete_resp(resp);
 }
 
-QtMqttErrCode quectel_mqtt_pub(quectel_mqtt_client_t handle, const char *topic, const char *message, QtMqttQoSLevel qos, bool retain)
+QL_MQTT_ERR_CODE_E ql_mqtt_pub(ql_mqtt_t handle, const char *topic, const char *message, QL_MQTT_QOS_LEVEL_E qos, bool retain)
 {
     if (NULL == handle)
-        return QT_MQTT_ERR_NOINIT;
+        return QL_MQTT_ERR_NOINIT;
+    if (handle->status == QL_MQTT_STATUS_CLOSED)
+    {
+        LOG_E("mqtt closed");
+        return QL_MQTT_ERR_PUB;
+    }
     at_response_t resp = at_create_resp_new(128, 0, 3000, handle);
     const char *cmd = NULL;
     uint16_t mid = 0;
@@ -472,7 +497,7 @@ QtMqttErrCode quectel_mqtt_pub(quectel_mqtt_client_t handle, const char *topic, 
     {
         cmd = "AT+QMTPUB";
     }
-    if (qos != QT_MQTT_QOS0)
+    if (qos != QL_MQTT_QOS0)
     {
         qosa_mutex_lock(handle->lock, QOSA_WAIT_FOREVER);
         mid = handle->mid++;
@@ -480,17 +505,22 @@ QtMqttErrCode quectel_mqtt_pub(quectel_mqtt_client_t handle, const char *topic, 
         qosa_mutex_unlock(handle->lock);
     }
     if (at_obj_exec_cmd(handle->client, resp, "%s=%d,%d,%d,%d,\"%s\",\"%s\"", cmd, handle->client_idx, mid, qos, retain, topic, message) < 0)
-        return QT_MQTT_ERR_PUB;
-    qosa_sem_wait(handle->sem, 2000);
+        return QL_MQTT_ERR_PUB;
+    qosa_sem_wait(handle->sem, (handle->pkt_timeout * handle->retry_times+1) * 1000);
     at_delete_resp(resp);
 
-    return QT_MQTT_OK;
+    return QL_MQTT_OK;
 }
 
-QtMqttErrCode quectel_mqtt_sub(quectel_mqtt_client_t handle, const char *topic, QtMqttQoSLevel qos)
+QL_MQTT_ERR_CODE_E ql_mqtt_sub(ql_mqtt_t handle, const char *topic, QL_MQTT_QOS_LEVEL_E qos)
 {
     if (NULL == handle)
-        return QT_MQTT_ERR_NOINIT;
+        return QL_MQTT_ERR_NOINIT;
+    if (handle->status == QL_MQTT_STATUS_CLOSED)
+    {
+        LOG_E("mqtt closed");
+        return QL_MQTT_ERR_SUB;
+    }
     at_response_t resp = at_create_resp_new(128, 0, 3000, handle);
     uint16_t mid = 1;
     qosa_mutex_lock(handle->lock, QOSA_WAIT_FOREVER);
@@ -498,16 +528,16 @@ QtMqttErrCode quectel_mqtt_sub(quectel_mqtt_client_t handle, const char *topic, 
     handle->mid = handle->mid == 0 ? 1 : handle->mid;
     qosa_mutex_unlock(handle->lock);
     at_obj_exec_cmd(handle->client, resp, "AT+QMTSUB=%d,%d,\"%s\",%d", handle->client_idx, mid, topic, qos);
-    qosa_sem_wait(handle->sem, 2000);
+    qosa_sem_wait(handle->sem, (handle->pkt_timeout * handle->retry_times+1) * 1000);
     at_delete_resp(resp);
 
-    return QT_MQTT_OK;
+    return QL_MQTT_OK;
 }
 
-QtMqttErrCode quectel_mqtt_unsub(quectel_mqtt_client_t handle, const char *topic)
+QL_MQTT_ERR_CODE_E ql_mqtt_unsub(ql_mqtt_t handle, const char *topic)
 {
     if (NULL == handle)
-        return QT_MQTT_ERR_NOINIT;
+        return QL_MQTT_ERR_NOINIT;
     at_response_t resp = at_create_resp_new(128, 0, 3000, handle);
     uint16_t mid = 1;
     qosa_mutex_lock(handle->lock, QOSA_WAIT_FOREVER);
@@ -515,16 +545,16 @@ QtMqttErrCode quectel_mqtt_unsub(quectel_mqtt_client_t handle, const char *topic
     handle->mid = handle->mid == 0 ? 1 : handle->mid;
     qosa_mutex_unlock(handle->lock);
     at_obj_exec_cmd(handle->client, resp, "AT+QMTUNS=%d,%d,\"%s\"", handle->client_idx, mid, topic);
-    qosa_sem_wait(handle->sem, 2000);
+    qosa_sem_wait(handle->sem, (handle->pkt_timeout * handle->retry_times+1) * 1000);
     at_delete_resp(resp);
-    return QT_MQTT_OK;
+    return QL_MQTT_OK;
 }
 
-void qutecel_mqtt_destroy(quectel_mqtt_client_t handle)
+void ql_mqtt_destroy(ql_mqtt_t handle)
 {
     if (NULL == handle)
         return;
-    quectel_mqtt_release_idx(handle->client_idx);
+    ql_mqtt_release_idx(handle->client_idx);
     qosa_sem_delete(handle->sem);
     qosa_mutex_delete(handle->lock);
     free(handle);

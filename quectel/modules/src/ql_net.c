@@ -1,13 +1,14 @@
 #include "QuectelConfig.h"
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_NETWORK__
+#include <stdarg.h>
 #include "qosa_log.h"
 #include "qosa_time.h"
 #include "module_info.h"
 #include "ql_net.h"
 
-static bool s_global_network_init = false;
-static osa_sem_t s_network_sem = NULL;
-static void quectel_network_ntp(struct at_client *client, const char *data, size_t size, void *arg)
+static bool s_global_net_init = false;
+static osa_sem_t s_net_sem = NULL;
+static void ql_net_ntp(struct at_client *client, const char *data, size_t size, void *arg)
 {
     struct tm tm = {0};
     int tz_offset = 32;
@@ -23,16 +24,16 @@ static void quectel_network_ntp(struct at_client *client, const char *data, size
         tm.tm_hour += tz_sign_factor * tz_offset / 4;
         tm.tm_isdst = -1;  // 自动判断夏令时
         update_ntp_time(mktime(&tm));
-        qosa_sem_release(s_network_sem);
+        qosa_sem_release(s_net_sem);
     }
 }
 
-static const struct at_urc s_network_urc_table[] =
+static const struct at_urc s_net_urc_table[] =
 {
-	{"+QNTP:", "\r\n", quectel_network_ntp}
+	{"+QNTP:", "\r\n", ql_net_ntp}
 };
 
-static int network_connect_module(quectel_network_t handle, u32_t timeout_ms)
+static int ql_net_connect_module(ql_net_t handle, u32_t timeout)
 {
     int result = 0;
     at_response_t resp = NULL;
@@ -49,9 +50,9 @@ static int network_connect_module(quectel_network_t handle, u32_t timeout_ms)
     while (1)
     {
         /* Check whether it is timeout */
-        if (time(NULL) - start_time > timeout_ms)
+        if (time(NULL) - start_time > timeout)
         {
-            LOG_E("wait AT client connect timeout(%d tick).", timeout_ms);
+            LOG_E("wait AT client connect timeout(%d tick).", timeout);
             result = -1;
             break;
         }
@@ -59,7 +60,6 @@ static int network_connect_module(quectel_network_t handle, u32_t timeout_ms)
         at_obj_exec_cmd(handle->client, resp, "AT");
         if (handle->client->resp_status == AT_RESP_OK)
         {
-            LOG_I("AT command successful");
             result = 0;
             break;
         }
@@ -69,28 +69,7 @@ static int network_connect_module(quectel_network_t handle, u32_t timeout_ms)
     return result;
 }
 
-static void network_setting_echo(quectel_network_t handle, int value)
-{
-    at_response_t resp = NULL;
-    resp = at_create_resp(1024, 0, (300));
-    if (NULL == resp)
-    {
-        LOG_E("No memory for AT response.\n");
-        return;
-    }
-    at_obj_exec_cmd(handle->client, resp, "ATE%d", value);
-    if (handle->client->resp_status == AT_RESP_OK)
-    {
-        LOG_I("ATE0 command successful");
-    }
-    else
-    {
-        LOG_E("ATE0 command failed");
-    }
-    at_delete_resp(resp);
-}
-
-static void network_query_moudle_type(quectel_network_t handle)
+static void ql_net_query_moudle_type(ql_net_t handle)
 {
     at_response_t query_resp = NULL;
     // Creating a response object for AT command
@@ -121,7 +100,7 @@ static void network_query_moudle_type(quectel_network_t handle)
     at_delete_resp(query_resp);
 }
 
-static int network_query_sim_state(quectel_network_t handle)
+static int ql_net_query_sim_state(ql_net_t handle)
 {
     at_response_t resp;
     const char *line;
@@ -149,13 +128,13 @@ static int network_query_sim_state(quectel_network_t handle)
             {
                 if (strstr(line, "READY"))
                 {
-                    LOG_I("SIM1 Test OK");
+                    LOG_I("SIM card detected successfully");
                     at_delete_resp(resp);
                     return 0; // SIM is ready
                 }
                 else
                 {
-                    LOG_W("SIM1 Test Fail, Try %d", 3 - 1 - attempt);
+                    LOG_W("SIM card detected failed, Try %d", 3 - 1 - attempt);
                     break;
                 }
             }
@@ -167,7 +146,7 @@ static int network_query_sim_state(quectel_network_t handle)
     return -1;
 }
 
-static void network_set_cfun_mode(quectel_network_t handle, u8_t mode)
+static void ql_net_set_cfun_mode(ql_net_t handle, u8_t mode)
 {
     at_response_t resp;
 
@@ -177,7 +156,7 @@ static void network_set_cfun_mode(quectel_network_t handle, u8_t mode)
         return;
     }
 
-    resp = at_create_resp(128, 0, (300));
+    resp = at_create_resp(128, 0, (15 * 1000));
     if (NULL == resp)
     {
         LOG_E("No memory for response object!\n");
@@ -190,156 +169,89 @@ static void network_set_cfun_mode(quectel_network_t handle, u8_t mode)
     at_delete_resp(resp);
 }
 
-/*
-    in LPWA Module:
-        1. The command is invalid on BG95-M1 module.
-        2. GSM RAT is valid only on BG95-M3, BG95-M5 and BG600L-M3 modules.
-    RATs searching sequence, e.g.: 020301 stands for eMTC → NB-IoT →
-    GSM.
-    00 Automatic (eMTC → NB-IoT → GSM)
-    01 GSM
-    02 eMTC
-    03 NB-IoT
-
-    in LTE Standard Module, Integer type. RATs searching sequence.
-    E.g.0102030405 stands for GSM → TDS→ WCDMA → LTE → CDMA.
-    Default value: 0403010502.
-    00 Automatic
-    01 GSM
-    02 TDS
-    03 WCDMA
-    04 LTE
-    05 CDMA
-    The value of <effect> parameter can only be set to 0
-*/
-static void network_set_scan_seq(quectel_network_t handle)
-{
-    if (get_module_type() != MOD_TYPE_BG95)
-        return;
-    at_response_t query_resp = NULL;
-    query_resp = at_create_resp(256, 0, (300));
-    int effect = 1;
-    if (at_obj_exec_cmd(handle->client, query_resp, "AT+QCFG=\"nwscanseq\",%s,1", handle->scan_seq, effect) < 0)
-    {
-        LOG_W("set scan seq failed");
-    }
-
-    at_delete_resp(query_resp);
-}
-
-/*
-    in LPWA Module, This command is valid only on BG95-M3, BG95-M5 and BG600L-M3 modules.
-    mode type:
-    0 Automatic (GSM and LTE)
-    1 GSM only
-    3 LTE only
-
-    in LTE Standard Module,
-    mode type:
-    0 AUTO
-    1 GSM only
-    2 WCDMA only
-    3 LTE only
-    4 TD-SCDMA only
-    5 UMTS only
-    6 CDMA only
-    7 HDR only
-    8 CDMA and HDR only
-*/
-static void network_set_scan_mode(quectel_network_t handle)
-{
-    if (get_module_type() == MOD_TYPE_BG95)
-        return;
-    at_response_t query_resp = NULL;
-    query_resp = at_create_resp(256, 0, (300));
-
-    if (at_obj_exec_cmd(handle->client, query_resp, "AT+QCFG=\"nwscanmode\",%d,1", handle->scanmode) < 0)
-    {
-        //LOG_W("set scan mode failed");
-    }
-
-    at_delete_resp(query_resp);
-}
-
-/*
-    in LPWA Module This command is invalid on BG95-M1 module.
-    mode type :
-    0 eMTC
-    1 NB-IoT
-    2 eMTC and NB-IoT
-
-    in LTE Standard Module,  not support
-*/
-static void network_set_iotop_mode(quectel_network_t handle)
-{
-    if (get_module_type() != MOD_TYPE_BG95)
-        return;
-    at_response_t query_resp = NULL;
-    query_resp = at_create_resp(256, 0, (300));
-
-    if (at_obj_exec_cmd(handle->client, query_resp, "AT+QCFG=\"iotopmode\",%d,1", handle->iotopmode) < 0)
-    {
-        LOG_W("set iotop mode failed");
-    }
-
-    at_delete_resp(query_resp);
-}
-
-static int network_query_register_status(quectel_network_t handle, u32_t timeout_ms)
+static int ql_net_check_creg(ql_net_t handle)
 {
     int status = -1;
     at_response_t query_resp = NULL;
-    u64_t start_time;
-    query_resp = at_create_resp(128, 0, (500));
-    if (NULL == query_resp)
+    query_resp = at_create_resp_new(128, 0, (500), NULL);
+    if (at_obj_exec_cmd(handle->client, query_resp, "AT+CREG?") < 0)
     {
-        LOG_E("no memory for AT client response object.");
+        at_delete_resp(query_resp);
         return -1;
     }
-    start_time = time(NULL);
-    while (1)
+
+    for (int i = 0; i < query_resp->line_counts; i++)
     {
-        /* Check whether it is timeout */
-        if (time(NULL) - start_time > timeout_ms)
+        const char *line = at_resp_get_line(query_resp, i + 1);
+
+        if (sscanf(line, "+CREG: %*d,%d", &status) == 1)
         {
-            LOG_E("query register status failed.");
-            break;
-        }
-
-        if (at_obj_exec_cmd(handle->client, query_resp, "AT+CEREG?") < 0)
-            continue;
-
-        for (int i = 0; i < query_resp->line_counts; i++)
-        {
-            const char *line = at_resp_get_line(query_resp, i + 1);
-
-            if (sscanf(line, "+CEREG: %*d,%d", &status) == 1)
+            if (status == 1 || status == 5)
             {
-                if (status == 1 || status == 5)
-                {
-                    at_delete_resp(query_resp);
-                    return 0;
-                }
+                at_delete_resp(query_resp);
+                return 0;
             }
         }
-        qosa_task_sleep_ms(1000);
     }
 
     at_delete_resp(query_resp);
     return -1;
 }
 
-static void network_config_pdp(quectel_network_t handle, int contentid)
+static int ql_net_check_cereg(ql_net_t handle)
 {
-    at_response_t resp;
+    int status = -1;
+    at_response_t query_resp = NULL;
+    query_resp = at_create_resp_new(128, 0, (500), NULL);
+    if (at_obj_exec_cmd(handle->client, query_resp, "AT+CEREG?") < 0)
+    {
+        at_delete_resp(query_resp);
+        return -1;
+    }
 
-    resp = at_create_resp(128, 0, (300));
-    at_obj_exec_cmd(handle->client, resp, "AT+QICSGP=%d,1,\"%s\",\"%s\",\"%s\"", "", contentid, "", "", "");
-    at_delete_resp(resp);
+    for (int i = 0; i < query_resp->line_counts; i++)
+    {
+        const char *line = at_resp_get_line(query_resp, i + 1);
 
+        if (sscanf(line, "+CEREG: %*d,%d", &status) == 1)
+        {
+            if (status == 1 || status == 5)
+            {
+                at_delete_resp(query_resp);
+                return 0;
+            }
+        }
+    }
+
+    at_delete_resp(query_resp);
+    return -1;
 }
 
-static int network_query_actice_state(quectel_network_t handle)
+static int ql_net_query_register_status(ql_net_t handle, u32_t timeout)
+{
+    u64_t start_time;
+    start_time = time(NULL);
+    while (1)
+    {
+        if (time(NULL) - start_time > timeout)
+        {
+            LOG_E("Register status query failed.");
+            break;
+        }
+        int ret1 = ql_net_check_creg(handle);
+        int ret2 = ql_net_check_cereg(handle);
+        if (0 == ret1 || 0 == ret2)
+        {
+            LOG_I("Network registration successful");
+            return 0;
+        }
+        qosa_task_sleep_ms(2000);
+    }
+
+    return -1;
+}
+
+static int ql_net_query_actice_state(ql_net_t handle)
 {
     at_response_t resp;
     int ret = -1;
@@ -348,7 +260,7 @@ static int network_query_actice_state(quectel_network_t handle)
     resp = at_create_resp(512, 0, (4000));
     if (at_obj_exec_cmd(handle->client, resp, "AT+QIACT?") < 0)
     {
-        LOG_E("networkt query active state failed.");
+        LOG_E("network query active state failed.");
         at_delete_resp(resp);
         return -1;
     }
@@ -380,7 +292,7 @@ static int network_query_actice_state(quectel_network_t handle)
     return ret;
 }
 
-static int networkt_active(quectel_network_t handle)
+static int ql_net_active(ql_net_t handle)
 {
     at_response_t resp;
     const char *line;
@@ -388,31 +300,26 @@ static int networkt_active(quectel_network_t handle)
     resp = at_create_resp(256, 0, (150*1000));
     if (at_obj_exec_cmd(handle->client, resp, "AT+QIACT=%d", handle->contextid) < 0)
     {
-         LOG_E("networkt active failed.");
+         LOG_E("network active failed.");
+         
+        for (int i = 0; i < resp->line_counts; i++)
+        {
+            line = at_resp_get_line(resp, i + 1);
+            if (strstr(line, "ERROR"))
+            {
+                at_delete_resp(resp);
+                return -1;
+            }
+        }
          at_delete_resp(resp);
         return -2;
-    }
-
-    for (int i = 0; i < resp->line_counts; i++)
-    {
-        line = at_resp_get_line(resp, i + 1);
-
-        if (strstr(line, "OK"))
-        {
-            break;
-        }
-        else if (strstr(line, "ERROR"))
-        {
-            at_delete_resp(resp);
-            return -1;
-        }
     }
 
     at_delete_resp(resp);
     return 0;
 }
 
-static int networkt_deactive(quectel_network_t handle)
+static int ql_net_deactive(ql_net_t handle)
 {
     at_response_t resp;
     const char *line;
@@ -420,7 +327,7 @@ static int networkt_deactive(quectel_network_t handle)
     resp = at_create_resp(256, 0, (40*1000));
     if (at_obj_exec_cmd(handle->client, resp, "AT+QIDEACT=%d", handle->contextid) < 0)
     {
-         LOG_E("networkt deactive failed.");
+         LOG_E("network deactive failed.");
          at_delete_resp(resp);
         return -2;
     }
@@ -444,7 +351,7 @@ static int networkt_deactive(quectel_network_t handle)
     return 0;
 }
 
-static void network_request_ntp_time(quectel_network_t handle, const char *ntp_server)
+static void net_request_ntp_time(ql_net_t handle, const char *ntp_server)
 {
     at_response_t query_resp = NULL;
     int try;
@@ -458,132 +365,149 @@ static void network_request_ntp_time(quectel_network_t handle, const char *ntp_s
         }
         break;
     }
-    qosa_sem_wait(s_network_sem, 30 * 1000);
+    qosa_sem_wait(s_net_sem, 30 * 1000);
     at_delete_resp(query_resp);
 }
 
-quectel_network_t quectel_network_init(at_client_t client)
+ql_net_t ql_net_init(at_client_t client)
 {
-    quectel_network_t handle = (quectel_network_t)malloc(sizeof(quectel_network_s));
+    ql_net_t handle = (ql_net_t)malloc(sizeof(ql_net_s));
     if (NULL == handle)
     {
         LOG_E("no memory for AT client response object.");
         return NULL;
     }
     handle->client = client;
-    handle->echo = 0;
     handle->contextid = 1;
-    memcpy(handle->scan_seq, "0203", 4);
-    handle->scan_seq[4] = '\0';
-    handle->iotopmode = 2;
     memcpy(handle->ip,  "127.0.0.1", strlen("127.0.0.1"));
     handle->ip[strlen("127.0.0.1")] = '\0';
-    if (!s_global_network_init)
+    if (ql_net_connect_module(handle, 20000) != 0)
     {
-        at_set_urc_table(s_network_urc_table, sizeof(s_network_urc_table) / sizeof(s_network_urc_table[0]));
-        s_global_network_init = true;
+        LOG_E("network init failed, can not connect to module!");
+        free(handle);
+        return NULL;
     }
-    qosa_sem_create(&s_network_sem, 0);
+    if (!s_global_net_init)
+    {
+        at_set_urc_table(s_net_urc_table, sizeof(s_net_urc_table) / sizeof(s_net_urc_table[0]));
+        s_global_net_init = true;
+    }
+    qosa_sem_create(&s_net_sem, 0);
+    ql_net_query_moudle_type(handle);
     return handle;
 }
 
-void quectel_network_set_param(quectel_network_t handle, QtNetworkParams type, void* value)
+QL_NET_ERR_CODE_E ql_usim_get(ql_net_t handle)
 {
-    if (NULL == handle || NULL == value)
-        return;
-    switch (type)
+    if (NULL == handle)
+        return QL_NET_ERR_NOINIT;
+    if (ql_net_query_sim_state(handle) == 0)
     {
-    case QT_NETWORK_PARAM_ECHO:
-        handle->echo = *(int*)value;
+        return QL_NET_OK;
+    }
+    return QL_NET_ERR_SIM; 
+}
+
+bool ql_net_set_opt(ql_net_t handle, QL_NET_OPTION_E option, ...)
+{
+    if (NULL == handle)
+        return false;
+    char cmd[128];
+    va_list args;
+    va_start(args, option);
+    switch (option)
+    {
+    case QL_NET_OPTINON_CONTENT:
+        ql_net_content_s *content = va_arg(args, ql_net_content_s*);
+        handle->contextid = content->contentid;
+        snprintf(cmd, sizeof(cmd), "AT+QICSGP=%d,1,\"%s\",\"%s\",\"%s\"", content->contentid,
+                        content->apn, content->username, content->password);
         break;
-    case QT_NETWORK_PARAM_SCANMODE:
-        handle->scanmode = *(int*)value;
+    case QL_NET_OPTINON_SCANMODE:
+        if (get_module_type() == MOD_TYPE_BG95 || get_module_type() == MOD_TYPE_BG96)
+            return false;
+        snprintf(cmd, sizeof(cmd), "AT+QCFG=\"nwscanmode\",%d,1", va_arg(args, int));
         break;
-    case QT_NETWORK_PARAM_SCANSEQ:
-        memcpy(handle->scan_seq, value, strlen((char*)value));
-        handle->scan_seq[strlen((char*)value)] = '\0';
+    case QL_NET_OPTINON_SCANSEQ:
+        if (get_module_type() != MOD_TYPE_BG95 && get_module_type() != MOD_TYPE_BG96)
+            return false;
+        snprintf(cmd, sizeof(cmd), "AT+QCFG=\"nwscanseq\",%s,1", va_arg(args, const char *));
         break;
-    case QT_NETWORK_PARAM_IOTOPMODE:
-        handle->iotopmode = *(int*)value;
-        break;
-    case QT_NETWORK_PARAM_SAVE:
-        handle->save = *(int*)value;
+    case QL_NET_OPTINON_IOTOPMODE:
+        if (get_module_type() != MOD_TYPE_BG95 && get_module_type() != MOD_TYPE_BG96)
+            return false;
+        snprintf(cmd, sizeof(cmd), "AT+QCFG=\"iotopmode\",%d,1", va_arg(args, int));
         break;
     default:
+        LOG_W("Unsupported network config option\n");
         break;
     }
+    va_end(args);
+
+    at_response_t resp = at_create_resp_new(256, 0, 1000, NULL);
+
+    if (at_exec_cmd(resp, cmd) < 0)
+    {
+        LOG_E("network config failed.");
+        at_delete_resp(resp);
+        return false;
+    }
+
+    at_delete_resp(resp);
+    return true;
 }
 
-QtNetworkErrCode quectel_network_attach(quectel_network_t handle)
+QL_NET_ERR_CODE_E ql_net_attach(ql_net_t handle)
 {
-    QtNetworkErrCode status = QT_NETWORK_OK;
     int ret = 0;
-    int i = 0;
 
     if (NULL == handle)
-        return QT_NETWORK_ERR_NOINIT;
-    if (network_connect_module(handle, 2000) != 0)
-        return QT_NETWORK_ERR_CONNECT;
-    network_setting_echo(handle, handle->echo);
-    network_query_moudle_type(handle);
-    status = QT_NETWORK_ERR_CPIN;
-    for (i = 0; i < 3; i++)
+        return QL_NET_ERR_NOINIT;
+    if (ql_net_query_register_status(handle, 60) != 0)
     {
-        if (network_query_sim_state(handle) == 0)
-        {
-            status = QT_NETWORK_OK;
-            break;
-        }
-        network_set_cfun_mode(handle, 4);
-        network_set_cfun_mode(handle, 1);
-    }
-    if (status != QT_NETWORK_OK)
-    {
-        LOG_E("quectel_network_attach cpin error");
-        return status;
-    }
-    network_set_scan_seq(handle);
-    // network_set_scan_mode(handle);
-    network_set_iotop_mode(handle);
-    if (network_query_register_status(handle, 60 * 1000) != 0)
-    {
-        network_config_pdp(handle, handle->contextid);
-        network_set_cfun_mode(handle, 4);
-        network_set_cfun_mode(handle, 1);
+        ql_net_set_cfun_mode(handle, 0);
+        ql_net_set_cfun_mode(handle, 1);
+        if (ql_net_query_register_status(handle, 60) != 0)
+            return QL_NET_ERR_REGISTER;
     }
 
-    if (network_query_actice_state(handle) != 0)
+    if (ql_net_query_actice_state(handle) != 0)
     {
-        ret = networkt_active(handle);
-        if (-2 == ret) // active timeout, reset the module
-            return QT_NETWORK_ERR_ACTIVE;
-        else if (-1 == ret)
+        for (int i = 0; i < 3; i++)
         {
-            // three deactivation failures, reset the module
-            for (i = 0; i < 3; i++)
+            ret = ql_net_active(handle);
+            if (-2 == ret) // active timeout, reset the module
+                return QL_NET_ERR_ACTIVE;
+            else if (-1 == ret)
             {
-                ret = networkt_deactive(handle);
-                if (-2 == ret) // deactive, timeout, reset the module
-                    return QT_NETWORK_ERR_DEACTIVE;
-                else if (0 == ret)
-                    break;
-            }
-            if (ret != 0)
-                return QT_NETWORK_ERR_DEACTIVE;
+                // three deactivation failures, reset the module
+                for (i = 0; i < 3; i++)
+                {
+                    ret = ql_net_deactive(handle);
+                    if (-2 == ret) // deactive, timeout, reset the module
+                        return QL_NET_ERR_DEACTIVE;
+                    else if (0 == ret)
+                        break;
+                }
+                if (ret != 0)
+                    return QL_NET_ERR_DEACTIVE;
 
-            if (networkt_active(handle) != 0)
-                return QT_NETWORK_ERR_ACTIVE;
+                if (ql_net_active(handle) != 0)
+                    return QL_NET_ERR_ACTIVE;
+            }
+            else 
+                break;
         }
     }
 
-    network_query_actice_state(handle);
-    network_request_ntp_time(handle, "ntp.aliyun.com");
-    return QT_NETWORK_OK;
+    ql_net_query_actice_state(handle);
+    net_request_ntp_time(handle, "ntp.aliyun.com");
+    return QL_NET_OK;
 }
 
-int quectel_network_get_rssi(quectel_network_t handle)
+int ql_net_get_rssi(ql_net_t handle)
 {
-    int rssi = -1;
+    int csq = -1;
     at_response_t query_resp = NULL;
     query_resp = at_create_resp(128, 0, (500));
     if (at_obj_exec_cmd(handle->client, query_resp, "AT+CSQ") < 0)
@@ -595,24 +519,43 @@ int quectel_network_get_rssi(quectel_network_t handle)
     {
         const char *line = at_resp_get_line(query_resp, i + 1);
 
-        if (sscanf(line, "+CSQ: %d,*d", &rssi) == 1)
+        if (sscanf(line, "+CSQ: %d,*d", &csq) == 1)
         {
             break;
         }
     }
-
+    int rssi = -113 + 2 * csq;
     at_delete_resp(query_resp);
     return rssi;
 }
 
-char* quectel_network_get_ip(quectel_network_t handle)
+const char* ql_net_get_ip(ql_net_t handle)
 {
     if (NULL == handle ||  strlen(handle->ip) == 0)
         return NULL;
     return handle->ip;
 }
 
-void quectel_module_reboot(quectel_network_t handle)
+bool ql_net_is_ok(ql_net_t handle)
+{
+    int ret1 = ql_net_check_creg(handle);
+    int ret2 = ql_net_check_cereg(handle);
+    if (0 == ret1 || 0 == ret2)
+    {
+        return true;
+    }
+    return false;
+}
+
+QL_NET_ERR_CODE_E ql_net_reconnect(ql_net_t handle)
+{
+    LOG_E("Reset module");
+    ql_net_set_cfun_mode(handle, 0);
+    ql_net_set_cfun_mode(handle, 1);
+    return ql_net_attach(handle);
+}
+
+void ql_module_reboot(ql_net_t handle)
 {
     at_response_t resp = NULL;
     resp = at_create_resp(128, 0, (2000));
@@ -622,14 +565,14 @@ void quectel_module_reboot(quectel_network_t handle)
     at_delete_resp(resp);
 }
 
-void quectel_network_detach(quectel_network_t handle)
+void ql_net_detach(ql_net_t handle)
 {
 
 }
 
-void quectel_network_deinit(quectel_network_t handle)
+void ql_net_deinit(ql_net_t handle)
 {
-    qosa_sem_delete(s_network_sem);
+    qosa_sem_delete(s_net_sem);
     if (handle != NULL)
     {
         free(handle);

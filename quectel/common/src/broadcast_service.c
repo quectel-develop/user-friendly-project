@@ -111,7 +111,6 @@ s32_t broadcast_send_msg(osa_msgq_t msg_id, s32_t what, s32_t arg1, s32_t arg2, 
 ******************************************************************************/
 s32_t broadcast_send_msg_myself(s32_t what, s32_t arg1, s32_t arg2, s32_t arg3)
 {
-	msg_node msg;
 	LOG_V("%s: what = 0x%x, arg1 = 0x%x, arg2 = 0x%x, arg3 = 0x%x", __FUNCTION__, what, arg1, arg2, arg3);
 
 	return broadcast_send_msg(g_broadcast_msg_id, what, arg1, arg2, arg3);
@@ -120,9 +119,8 @@ s32_t broadcast_send_msg_myself(s32_t what, s32_t arg1, s32_t arg2, s32_t arg3)
 /******************************************************************************
 * function : broadcast thread
 ******************************************************************************/
-static void* broadcast_service_thread_proc(void* pThreadParam)
+static void broadcast_service_thread_proc(void* pThreadParam)
 {
-	s32_t ret;
 	s32_t i;
 	s8_t bfind;
 	msg_node msgs;
@@ -158,7 +156,7 @@ static void* broadcast_service_thread_proc(void* pThreadParam)
 				//LOG_V ("Find the match what %d, revqid:0x%x, len:%d", msgs.what, g_broadcast_recv[i].msgqid, sizeof(msg_node));
 
 				bfind = QOSA_TRUE;
-				status = qosa_msgq_release(g_broadcast_recv[i].msgqid, sizeof(msg_node), &msgs, 0);
+				status = qosa_msgq_release(g_broadcast_recv[i].msgqid, sizeof(msg_node), (uint8_t*)&msgs, 0);
 				if (status != QOSA_OK)
 				{
 					LOG_E ("Can not send msg to 0x%x", g_broadcast_recv[i].msgqid);
@@ -195,7 +193,7 @@ s32_t broadcast_service_create(void)
 		return -1;
 	}
 
-	ret = qosa_task_create(&g_broadcast_thread_id, 512*3, QOSA_PRIORITY_NORMAL, "Bcast_S", broadcast_service_thread_proc, NULL);
+	ret = qosa_task_create(&g_broadcast_thread_id, 512*20, QOSA_PRIORITY_NORMAL, "Bcast_S", broadcast_service_thread_proc, NULL);
 	if (ret != QOSA_OK)
 	{
 		LOG_E ("Broadcast thread could not start!");

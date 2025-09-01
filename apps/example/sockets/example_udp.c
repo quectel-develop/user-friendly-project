@@ -3,7 +3,7 @@
 
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET_UDP_CLIENT__
 #include "debug_service.h"
-#include "at_socket.h"
+#include "ql_socket.h"
 #include "qosa_log.h"
 
 int example_udp_client_test(short sin_port, char *sin_addr, int loop_count, int loop_interval)
@@ -45,7 +45,7 @@ int example_udp_client_test(short sin_port, char *sin_addr, int loop_count, int 
 
         qosa_task_sleep_ms(loop_interval);
     }
-    closesocket(fd);
+    close(fd);
 
     LOG_V("%s over",__FUNCTION__);
 

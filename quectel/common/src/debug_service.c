@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include "hal_uart.h"
 #include "debug_service.h"
 #include "broadcast_service.h"
 #include "ringbuffer.h"
@@ -29,11 +30,11 @@ int32_t g_save_debug_flag = 0;
 #endif
 
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_DEBUG_SAVE__
-#define LOG_FILE      "0:quectel.log"
-#define BACKUP_DIR   "0:/backup"
+#define LOG_FILE        "0:quectel.log"
+#define BACKUP_DIR      "0:/backup"
 static osa_task_t g_debug_service_thread_id = NULL;
 osa_sem_t g_debug_service_sem_id = NULL;
-struct ringbuffer g_log_rb = {.buffer = NULL};
+ringbuffer_t g_log_rb = {.buffer = NULL};
 static uint8_t *g_log_rb_buf = QOSA_NULL;
 #endif
 
@@ -42,7 +43,7 @@ static osa_sem_t g_cli_input_sem_id = NULL;
 static osa_task_t g_serial_input_parse_thread_id = NULL;
 
 static int cli_test_table(int argc, char *argv[]);
-Cli_Menu* g_cli_fun_array = NULL;
+Cli_Menu_t* g_cli_fun_array = NULL;
 int32_t   g_cli_fun_array_size = 0;
 
 
@@ -119,8 +120,8 @@ static void debug_service_cmd_parse(char *cmd, s32_t *pargc, char *argv[])
 int debug_service_cmd_exec(const char *cmd)
 {
 	char *argv[CMD_ARGC_NUM];
-	int32_t argc = 0;
-	int32_t i = 0;
+	s32_t argc = 0;
+	s32_t i = 0;
 
 	if(cmd == NULL)
 	{
@@ -128,8 +129,7 @@ int debug_service_cmd_exec(const char *cmd)
 		return -1;
 	}
     /* Analyze and separate each parameter */
-	debug_service_cmd_parse(cmd, &argc, argv);
-
+	debug_service_cmd_parse((char*)cmd, &argc, argv);
     /* Input none or "help" */
     if ((argv[0] == NULL) || (strcmp(argv[0], "help") == 0))
     {
@@ -159,13 +159,14 @@ int debug_service_cmd_exec(const char *cmd)
 	if (i == g_cli_fun_array_size)
 	{
         LOG_E("Invalid parameter:%s", argv[0]);
+		cli_test_table(0, NULL);
 	}
 
 	return 0;
 }
 
 
-void serial_input_parse_thread_wake_up(void)
+void debug_uart_input_notify(void)
 {
 	if (g_cli_input_sem_id)
     {
@@ -173,10 +174,10 @@ void serial_input_parse_thread_wake_up(void)
     }
 }
 
-static void* shell_input_parse_thread_proc(void* pThreadParam)
+static void shell_input_parse_thread_proc(void* pThreadParam)
 {
 	int32_t ret;
-	uint8_t *pData = NULL;
+	const uint8_t *pData = NULL;
 	uint16_t Size;
 
 	while (1)
@@ -185,17 +186,16 @@ static void* shell_input_parse_thread_proc(void* pThreadParam)
 		if (ret != QOSA_OK)
 		{
 			LOG_E("qosa_sem_wait msg failed!");
-			return -1;
+			return;
 		}
 
-		USER_GET_DEBUG_INPUT_DATA(&pData, &Size);
-		pData[Size] = '\0';
+		qosa_uart_get_debug_input(&pData, &Size);
 		// taskENTER_CRITICAL(); // 禁用中断
         // LOG_V("\r\n");
         printf("\r\n");     // FIX: Input content will disappear when not using "LOG_VERBOSE" mode.
 		LOG_V("get = %s", pData);
 		// taskEXIT_CRITICAL(); // 重新启用中断
-		debug_service_cmd_exec(pData);
+		debug_service_cmd_exec((const char*)pData);
 		// LOG_H("# ");
 		// fflush(stdout);
 	}
@@ -206,9 +206,7 @@ static void* shell_input_parse_thread_proc(void* pThreadParam)
 
 int debug_cli_service_create(void)
 {
-	int ret = QOSA_OK;
-
-	ret = qosa_sem_create(&g_cli_input_sem_id, 0);
+	qosa_sem_create(&g_cli_input_sem_id, 0);
     if (g_cli_input_sem_id == NULL)
     {
         LOG_E("g_cli_input_sem_id semaphore create failed!");
@@ -216,7 +214,7 @@ int debug_cli_service_create(void)
     }
 
     /* Externed task stack, Jerry.Chen, 2025-06-16 */
-    ret = qosa_task_create(&g_serial_input_parse_thread_id, 1024 * 16, QOSA_PRIORITY_NORMAL, "Debug_S", shell_input_parse_thread_proc, NULL);
+    qosa_task_create(&g_serial_input_parse_thread_id, 1024 * 16, QOSA_PRIORITY_NORMAL, "Debug_S", shell_input_parse_thread_proc, NULL);
 	if (NULL == g_serial_input_parse_thread_id)
 	{
 		LOG_E("thread_id thread could not start!");
@@ -274,7 +272,7 @@ static int debug_save_service_destroy(void)
 	return 0;
 }
 
-static void* debug_service_thread_proc(void* pThreadParam)
+static void debug_service_thread_proc(void* pThreadParam)
 {
 	int32_t ret,size;
 	FRESULT f_res;
@@ -348,10 +346,10 @@ static void* debug_service_thread_proc(void* pThreadParam)
             goto __exit;
 		}
 
-		while (g_save_debug_flag&&ringbuffer_data_len(&g_log_rb))
+		while (g_save_debug_flag && ringbuffer_used_length(&g_log_rb))
 		{
 			memset(LOG_BUFFER, 0, DBG_BUFF_LEN);
-			ringbuffer_getstr(&g_log_rb, LOG_BUFFER, sizeof(size));
+			ringbuffer_get(&g_log_rb, LOG_BUFFER, sizeof(size));
 			memcpy(&size, LOG_BUFFER, sizeof(size));
 			if (size > DBG_BUFF_LEN)
 			{
@@ -360,7 +358,7 @@ static void* debug_service_thread_proc(void* pThreadParam)
 			while (size > 0)
 			{
 				int need = MIN(DBG_BUFF_LEN, size);
-				ringbuffer_getstr(&g_log_rb, LOG_BUFFER, need);
+				ringbuffer_get(&g_log_rb, LOG_BUFFER, need);
 				//printf("A:%s", LOG_BUFFER);
 				f_res = f_write(&SDFile, LOG_BUFFER, need, &fnum);
 				if(f_res != FR_OK)
@@ -390,8 +388,6 @@ __exit:
 
 static int debug_save_service_create(int rb_size)
 {
-    int ret = -1;
-
 	//1. Init ringbuffer
 	g_log_rb_buf = malloc(rb_size);
 	if (g_log_rb_buf == NULL )
@@ -402,7 +398,7 @@ static int debug_save_service_create(int rb_size)
 	ringbuffer_init(&g_log_rb, g_log_rb_buf, rb_size);
 
 	//2. Init sem
-	ret = qosa_sem_create(&g_debug_service_sem_id, 0);
+	qosa_sem_create(&g_debug_service_sem_id, 0);
     if (g_debug_service_sem_id == NULL)
     {
         LOG_E("AT client initialize failed! g_debug_service_sem_id semaphore create failed!");
@@ -410,7 +406,7 @@ static int debug_save_service_create(int rb_size)
     }
 
 	//3. Create thread
-    ret = qosa_task_create(&g_debug_service_thread_id, 1024 * 4, QOSA_PRIORITY_ABOVE_NORMAL, "Log_Save", debug_service_thread_proc, NULL);
+    qosa_task_create(&g_debug_service_thread_id, 1024 * 4, QOSA_PRIORITY_ABOVE_NORMAL, "Log_Save", debug_service_thread_proc, NULL);
 	if (NULL == g_debug_service_thread_id)
 	{
 		LOG_E("g_debug_service_thread_id thread could not start!");
@@ -478,7 +474,12 @@ static int cli_debug_test(int argc, char *argv[])
 	uint64_t total_bytes;
 	uint32_t total_gb;
 	uint32_t decimal_part;
-
+	if (argc < 2)
+	{
+		LOG_E("Invalid parameter");
+		cli_debug_get_help();
+		return -1;
+	}
     if (strcmp((const char *)argv[1], "mode") == 0)
 	{
 		g_debug_mode = atoi(argv[2]);
@@ -549,6 +550,11 @@ static int cli_debug_test(int argc, char *argv[])
 
 static int cli_at_test(int argc, char *argv[])
 {
+	if (argc < 2)
+	{
+		LOG_E("Invalid parameter");
+		cli_at_get_help();
+	}
     if(argv[1] != NULL)
     {
         at_response_t resp;
@@ -559,7 +565,7 @@ static int cli_at_test(int argc, char *argv[])
     return 0;
 }
 
-int debug_cli_func_reg(int32_t cnt, Cli_Menu* cli_menu[])
+int debug_cli_func_reg(int32_t cnt, Cli_Menu_t cli_menu[])
 {
     int32_t i;
 
@@ -582,6 +588,7 @@ int debug_cli_func_reg(int32_t cnt, Cli_Menu* cli_menu[])
 
     return 0;
 }
+
 static int prompt_need_wait_count = 0;
 void inc_prompt_wait_count()
 {
@@ -603,9 +610,7 @@ void log_shell_prompt(void)
 	}
 }
 #else
-void serial_input_parse_thread_wake_up(void)
+void debug_uart_input_notify(void)
 {
 }
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_DEBUG_SHELL__ */
-
-

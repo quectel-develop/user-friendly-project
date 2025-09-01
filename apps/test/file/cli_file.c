@@ -1,12 +1,12 @@
 #include "QuectelConfig.h"
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_CLI_TEST__
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_FILESYSTEM__
-#include "ql_fs.h"
+#include "ql_file.h"
 #include "cli_file.h"
 #include "qosa_log.h"
 
-char read_data[30 + 1];
-
+static QL_FILE s_file_stream[10] = {0};
+extern void at_print_raw_cmd(const char *type, const char *cmd, size_t size);
 void cli_file_get_help(void)
 {
     LOG_I("  0.   query files");
@@ -38,80 +38,189 @@ void cli_file_get_help(void)
 }
 
 // Function to print a list of files with their details
-void PrintfsList(File_Moudle_Info *fileList, int fileCount)
+void PrintfsList(ql_file_info_s *list)
 {
-    for (int i = 0; i < fileCount; i++)
+    LOG_I("file list:");
+    while (list)
     {
-        // Print the filename, size in kilobytes, and date for each file.
-        LOG_V("Filename: %s       , B: %ld      \n",
-              fileList[i].filename,
-              fileList[i].filesize);
+        LOG_I("\t%s %d", list->filename, list->filesize);
+        list = list->next;
     }
+    LOG_I("\n");
 }
 
 int cli_file_test(s32_t argc, char *argv[])
 {
-    fs_test_config config;
-    config.fs_type = atoi(argv[1]);
-
-    switch(config.fs_type)
+    if (argc < 2)
+    {
+        LOG_E("Invalid parameter");
+        cli_file_get_help();
+        return -1;
+    }
+    int ret = -1;
+    switch(atoi(argv[1]))
     {
         case 0:  // LIST
-            strcpy(config.name_pattern, argv[2]);
-            File_Moudle_Info fileList[32];
-            int fileCount = ql_module_list_get(config.name_pattern, fileList, sizeof(fileList) / sizeof(fileList[0]), 0);
-            if (fileCount >= 0)
+            ql_file_info_s *list =NULL;
+            ret = ql_file_list(at_client_get_first(), argv[2], &list);
+            if (0 == ret)
             {
-                PrintfsList(fileList, fileCount);
+                PrintfsList(list);
+                ql_free_file_list(list);
+                LOG_I("file list success");
             }
-            break;
-
+            else
+            {
+                LOG_E("file list failed");
+            }       
+            return ret;
         case 1:  // DEL
-            strcpy(config.name_pattern, argv[2]);
-            ql_file_del(config.name_pattern);
-            break;
+            ret = ql_remove(at_client_get_first(), argv[2]);
+            if (0 == ret)
+            {
+                LOG_I("file delete success");
+            }
+            else
+            {
+                LOG_E("file delete failed");
+            }
+            return ret;
 
         case 2:  // FREE
-            strcpy(config.name_pattern, argv[2]);
-            s32_t free_size, total_size;
-            LOG_V("name_pattern %s.\n", config.name_pattern);
-            if (ql_fs_get_free(config.name_pattern, &free_size, &total_size) == 0)
-                LOG_V("Free size: %d, Total size: %d\n", free_size, total_size);
+            size_t free_size, total_size;
+            LOG_V("name_pattern %s.", argv[2]);
+            ret = ql_get_storage_space(at_client_get_first(), argv[2], &free_size, &total_size);
+            if (0 == ret)
+                LOG_I("query storage success, Free size: %d, Total size: %d", free_size, total_size);
             else
-                LOG_V("Failed to get file system info.\n");
-            break;
+                LOG_E("query storage failed");
+            return ret;
 
         case 3:  // OPEN
-            strcpy(config.name_pattern, argv[2]);
-            config.open_mode = atoi(argv[3]);
-            u16_t file_handle;
-            file_handle = ql_fs_open(config.name_pattern, config.open_mode);
-            LOG_V("file_handle %d\n", file_handle);
-            break;
-
+        {
+            QL_FILE file = ql_fopen(argv[2], atoi(argv[3]));
+            if (NULL == file)
+            {
+                LOG_E("file open failed");
+                return -1;
+            }
+            int i = 0;
+            for (i = 0; i < 10; i++)
+            {
+                if (NULL == s_file_stream[i])
+                {
+                    s_file_stream[i] = file;
+                    break;
+                }
+            }
+            if (i < 10)
+                LOG_I("file open success, file handle %d", s_file_stream[i]->fd);
+            return 0;
+        }
         case 4:  // WRITE
-            config.file_handle = atoi(argv[2]);
-            config.write_read_size = atoi(argv[3]);
-            ql_fs_write(config.file_handle, config.write_read_size, config.write_buffer);
-            break;
-
-        case 5:  // CLOSE
-            config.file_handle = atoi(argv[2]);
-            ql_fs_close(config.file_handle);
-            break;
-
-        case 6:  // READ
-            config.file_handle = atoi(argv[2]);
-            config.write_read_size = atoi(argv[3]);
-            u16_t read_len = ql_fs_read(config.file_handle, config.write_read_size, read_data);
-            if (read_len > 0)
-                LOG_V("Read data (%d bytes): %s\n", read_len, read_data);
+        {
+            QL_FILE file = NULL;
+            for (int i = 0; i < 10; i++)
+            {
+                if (s_file_stream[i] != NULL && s_file_stream[i]->fd == atoi(argv[2]))
+                {
+                    file = s_file_stream[i];
+                    break;
+                }
+            }
+            if (file == NULL)
+            {
+                LOG_E("Invalid file handle");
+                break;
+            }
+            int min_len = (atoi(argv[3]) > strlen(argv[4])) ? strlen(argv[4]) : atoi(argv[3]);
+            ret = ql_fwrite(argv[4], 1, min_len, file);
+            if (ret > 0)
+            {
+                LOG_I("file write success, write_size %d", ret);
+            }
             else
-                LOG_V("Failed to read data.\n");
+            {
+                LOG_E("file write failed");
+            }
             break;
-
-        default:  break;
+        }
+        case 5:  // CLOSE
+        {
+            QL_FILE file = NULL;
+            for (int i = 0; i < 10; i++)
+            {
+                if (s_file_stream[i] != NULL && s_file_stream[i]->fd == atoi(argv[2]))
+                {
+                    file = s_file_stream[i];
+                    s_file_stream[i] = NULL;
+                    break;
+                }
+            }
+            if (file == NULL)
+            {
+                LOG_E("Invalid file handle");
+                break;
+            }
+            ret = ql_fclose(file);
+            if (0 ==ret)
+            {
+                LOG_I("file close success");
+            }
+            else
+            {
+                LOG_E("file close failed");
+            }
+            return ret;
+        }
+        case 6:  // READ
+        {
+            QL_FILE file = NULL;
+            for (int i = 0; i < 10; i++)
+            {
+                if (s_file_stream[i] != NULL && s_file_stream[i]->fd == atoi(argv[2]))
+                {
+                    file = s_file_stream[i];
+                    break;
+                }
+            }
+            if (file == NULL)
+            {
+                LOG_E("Invalid file handle");
+                break;
+            }
+            char *read_data = (char*)malloc(atoi(argv[3]) + 1);
+            if (NULL == read_data)
+            {
+                LOG_E("read size too large");
+                return -1;
+            }
+            memset(read_data, 0, atoi(argv[3]) + 1);
+            int read_len = ql_fread(read_data, 1, atoi(argv[3]), file);
+            if (read_len >= 0)
+            {
+                at_print_raw_cmd("Read data", read_data, read_len);
+                FIL fil;
+                FRESULT res = f_open(&fil, "0:read.txt", FA_CREATE_ALWAYS | FA_WRITE);
+                UINT size = 0;
+                if(FR_OK == res)
+                {
+                    f_write(&fil, read_data, read_len, &size);
+                    f_close(&fil);
+                }
+                LOG_I("file read success, read size %d", read_len);
+            }
+            else
+            {
+                LOG_E("file read failed");
+            }
+            free(read_data);
+            return read_len >=0 ? 0 : -1;
+        }
+        default:
+            break;
     }
+    return 0;
 }
 
 #else

@@ -23,8 +23,8 @@ void cli_ftp_get_help(void)
     LOG_I("     port           : FTP(S) server port");
     LOG_I("     ftp_type       : FTP fun mode");
     LOG_I("     1: file     list ");
-    LOG_I("     2: file     get");
-    LOG_I("     3: file     uploader,");
+    LOG_I("     2: file     download");
+    LOG_I("     3: file     upload");
     LOG_I("     directoryToSet       : The directory of the server");
     LOG_I("     local_name  : Data path in SD card");
     LOG_I("     rem_name  : The file name of the server");
@@ -87,26 +87,42 @@ void cli_ftp_get_help(void)
 
 
 // print all list
-static void print_ftp_list(const quectel_ftp_file_info_s *head)
+static void print_ftp_list(const ql_ftp_file_info_s *head)
 {
-    const quectel_ftp_file_info_s *current = head;
+    LOG_I("file list:");
+    const ql_ftp_file_info_s *current = head;
     while (current != NULL)
     {
-        LOG_I("Type: %c %s %d  %s %s %ld %s %s", current->type, current->permissions, current->links,
+        LOG_I("\tType: %c %s %d  %s %s %ld %s %s", current->type, current->permissions, current->links,
           current->owner, current->group, current->size, current->date, current->name);
         current = current->next;
     }
+    LOG_I("\n");
 }
 
 int cli_ftp_test(int argc, char *argv[])
 {
-    if (argc < 14) {
+    if (argc < 14)
+    {
+        LOG_E("Invalid parameter");
         cli_ftp_get_help();
         return -1;
     }
-
-    quectel_ftp_t ftp_handle = quectel_ftp_init(argv[7], atoi(argv[8]), at_client_get_first());
+    LOG_I("     contextid         : %d", atoi(argv[1]));
+    LOG_I("     username          : %s", argv[2]);
+    LOG_I("     password          : %s", argv[3]);
+    LOG_I("     filetype          : %d", atoi(argv[4]));
+    LOG_I("     transmode         : %d", atoi(argv[5]));
+    LOG_I("     rsptimeout        : %d", atoi(argv[6]));
+    LOG_I("     request_url       : %s", argv[7]);
+    LOG_I("     port              : %d", atoi(argv[8]));
+    LOG_I("     ftp_type          : %d", atoi(argv[9]));
+    LOG_I("     directoryToSet    : %s", argv[10]);
+    LOG_I("     local_name        : %s", argv[11]);
+    LOG_I("     rem_name          : %s", argv[12]);
+    LOG_I("     sslenble          : %d", atoi(argv[13]));
     ql_SSL_Config ssl_config;
+    memset(&ssl_config, 0, sizeof(ssl_config));
     ssl_config.sslenble = atoi(argv[13]);
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SSL__
     if (ssl_config.sslenble == 1)
@@ -116,50 +132,77 @@ int cli_ftp_test(int argc, char *argv[])
         ssl_config.ciphersuite = strtol(argv[16], NULL, 16);
         ssl_config.seclevel = atoi(argv[17]);
         ssl_config.sslversion = atoi(argv[18]);
-        LOG_I("            ssltype       : %d", ssl_config.ssltype);
-        LOG_I("            sslctxid      : %d", ssl_config.sslctxid);
-        LOG_I("            ciphersuite   : 0x%x", ssl_config.ciphersuite);
-        LOG_I("            seclevel      : %d", ssl_config.seclevel);
-        LOG_I("            sslversion    : %d", ssl_config.sslversion);
-        quectel_ftp_set_ssl(ftp_handle, ssl_config);
+        ssl_config.src_is_path = true;
+        ssl_config.cacert_src = "ftp_ca.pem";
+        ssl_config.cacert_dst_path = "ftp_ca.pem";
+        LOG_I("     ssltype           : %d", ssl_config.ssltype);
+        LOG_I("     sslctxid          : %d", ssl_config.sslctxid);
+        LOG_I("     ciphersuite       : 0x%x", ssl_config.ciphersuite);
+        LOG_I("     seclevel          : %d", ssl_config.seclevel);
+        LOG_I("     sslversion        : %d", ssl_config.sslversion);
     }
 #endif /* __QUECTEL_UFP_FEATURE_SUPPORT_SSL__ */
-    quectel_ftp_setopt(ftp_handle, QT_FTP_OPT_CONTEXT_ID, atoi(argv[1]));
-    quectel_ftp_setopt(ftp_handle, QT_FTP_OPT_FILE_TYPE, atoi(argv[4]));
-    quectel_ftp_setopt(ftp_handle, QT_FTP_OPT_RSP_TIMEOUT, atoi(argv[6]));
-    if (quectel_ftp_login(ftp_handle, argv[2], argv[3]) != QT_FTP_OK )
+    ql_ftp_t ftp_handle = ql_ftp_init(argv[7], atoi(argv[8]), at_client_get_first());
+    ql_ftp_setopt(ftp_handle, QL_FTP_OPT_CONTEXT_ID, atoi(argv[1]));
+    ql_ftp_setopt(ftp_handle, QL_FTP_OPT_FILE_TYPE, atoi(argv[4]));
+    ql_ftp_setopt(ftp_handle, QL_FTP_OPT_RSP_TIMEOUT, atoi(argv[6]));
+#ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SSL__
+    if (!ql_ftp_set_ssl(ftp_handle, ssl_config))
+        return -1;
+#endif /* __QUECTEL_UFP_FEATURE_SUPPORT_SSL__ */
+    if (ql_ftp_login(ftp_handle, argv[2], argv[3]) != QL_FTP_OK )
     {
         LOG_E("Login failed");
-        quectel_ftp_uninit(ftp_handle);
+        ql_ftp_uninit(ftp_handle);
         return -1;
     }
-    QtFtpErrCode err = quectel_ftp_cwd(ftp_handle, argv[10]);
-    if (err != QT_FTP_OK)
+    QL_FTP_ERR_CODE_E err = ql_ftp_cwd(ftp_handle, argv[10]);
+    if (err != QL_FTP_OK)
     {
-        quectel_ftp_logout(ftp_handle);
-        quectel_ftp_uninit(ftp_handle);
+        ql_ftp_logout(ftp_handle);
+        ql_ftp_uninit(ftp_handle);
         return -1;
     }
     if (atoi(argv[9])== 1)
     {
-        quectel_ftp_file_info_s *file_head = NULL;
-        quectel_ftp_list(ftp_handle, argv[10], &file_head);
-        print_ftp_list(file_head);
-        quectel_ftp_list_free(file_head);
+        ql_ftp_file_info_s *file_head = NULL;
+        err = ql_ftp_list(ftp_handle, argv[10], &file_head);
+        if (err != QL_FTP_OK)
+        {
+            LOG_E("ftp list failed %s", argv[10]);
+        }
+        else
+        {
+            print_ftp_list(file_head);
+            ql_ftp_list_free(file_head);
+            LOG_I("ftp get file list success");
+        }
     }
     else if (atoi(argv[9]) == 2)
     {
-        quectel_ftp_download(ftp_handle, argv[12], argv[11]);
+        err = ql_ftp_download(ftp_handle, argv[12], argv[11]);
+        if (err != QL_FTP_OK)
+        {
+            LOG_E("ftp download file failed %s %d", argv[12], err);
+        }
+        else
+            LOG_I("ftp download success");
     }
     else if (atoi(argv[9]) == 3)
     {
-        quectel_ftp_upload(ftp_handle, argv[11], argv[12]);
+        err = ql_ftp_upload(ftp_handle, argv[11], argv[12]);
+        if (err != QL_FTP_OK)
+        {
+            LOG_E("ftp upload file failed %s %d", argv[11], err);
+        }
+        else
+            LOG_I("ftp upload success");
     }
-    quectel_ftp_logout(ftp_handle);
-    quectel_ftp_uninit(ftp_handle);
-    return 0;
+    ql_ftp_logout(ftp_handle);
+    ql_ftp_uninit(ftp_handle);
+    LOG_I("ftp close");
+    return err == QL_FTP_OK ? 0 : -1;
 }
-
 
 #else
 void cli_ftp_get_help(void)

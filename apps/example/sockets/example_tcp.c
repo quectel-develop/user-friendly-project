@@ -3,7 +3,7 @@
 
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SOCKET_TCP_CLIENT__
 #include "debug_service.h"
-#include "at_socket.h"
+#include "ql_socket.h"
 #include "qosa_log.h"
 
 int example_tcp_client_test(short sin_port, char *sin_addr, int loop_count, int loop_interval)
@@ -30,7 +30,7 @@ int example_tcp_client_test(short sin_port, char *sin_addr, int loop_count, int 
     if(ret != 0)
     {
         LOG_E("Server connection failure");
-        closesocket(fd);
+        close(fd);
         return -1;
     }
     LOG_I("Server connection success 0x%x", ret);
@@ -53,7 +53,7 @@ int example_tcp_client_test(short sin_port, char *sin_addr, int loop_count, int 
 
         qosa_task_sleep_ms(loop_interval);
     }
-    closesocket(fd);
+    close(fd);
 
     LOG_D("%s over",__FUNCTION__);
 

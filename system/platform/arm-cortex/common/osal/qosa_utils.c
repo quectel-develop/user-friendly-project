@@ -1,12 +1,12 @@
-#include <time.h>
-
+#include <ctype.h>
+#include "cmsis_os2.h"
 #include "qosa_def.h"
 #include "qosa_system.h"
 #include "qosa_socket.h"
 
 uint64_t qosa_get_uptime_milliseconds(void)
 {
-    uint64_t uptime = xTaskGetTickCount();
+    uint64_t uptime = osKernelGetTickCount();
     return uptime;
 }
 
@@ -331,8 +331,7 @@ char *ipaddr_ntoa_r(const ip_addr_t *addr, char *buf, int buflen)
  * @return pointer to a global static (!) buffer that holds the ASCII
  *         represenation of addr
  */
-char *
-ipaddr_ntoa(const ip_addr_t *addr)
+char* ipaddr_ntoa(const ip_addr_t *addr)
 {
   static char str[16];
   return ipaddr_ntoa_r(addr, str, 16);

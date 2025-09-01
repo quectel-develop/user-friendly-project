@@ -15,6 +15,7 @@
 **********************************************************************/
 #ifndef _QOSA_UTILS_H__
 #define _QOSA_UTILS_H__
+#include <stdint.h>
 
 uint64_t qosa_get_uptime_milliseconds(void);
 

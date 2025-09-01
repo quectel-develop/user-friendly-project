@@ -1,10 +1,10 @@
 /**
- * @file quectel_network.h 
- * @brief Quectel module network interface definitions
+ * @file ql_net.h 
+ * @brief quectel network interface definitions
  */
 
-#ifndef __QUECTEL_NETWORK_H__
-#define __QUECTEL_NETWORK_H__
+#ifndef __QL_NET_H__
+#define __QL_NET_H__
 
 #ifdef __cplusplus
 extern "C"
@@ -12,50 +12,116 @@ extern "C"
 #endif
 
 #include "at.h"
-#include "quectel_common_def.h"
+#include "ql_common_def.h"
 
 typedef enum
 {
-    QT_NETWORK_PARAM_ECHO,
-    QT_NETWORK_PARAM_SCANMODE,
-    QT_NETWORK_PARAM_SCANSEQ,
-    QT_NETWORK_PARAM_IOTOPMODE,
-    QT_NETWORK_PARAM_SAVE,
+    QL_NET_OPTINON_CONTENT, // see ql_net_content_s
+    QL_NET_OPTINON_SCANMODE,
+    QL_NET_OPTINON_SCANSEQ,
+    QL_NET_OPTINON_IOTOPMODE,
 
-    QT_NETWORK_PARAM_UNKNOWN
-} QtNetworkParams;
+    QL_NET_OPTINON_UNKNOWN
+} QL_NET_OPTION_E;
 
-typedef struct quectel_network
+typedef struct ql_net_content
+{
+    int contentid;
+    char* apn;
+    char* username;
+    char* password;
+} ql_net_content_s;
+
+typedef struct ql_net
 {
     at_client_t client;
-    int echo;
-    int scanmode;
-    int iotopmode;
-    int save;
     int contextid;
-    char scan_seq[8];
     char ip[16];
-} quectel_network_s;
+} ql_net_s;
 
-typedef quectel_network_s* quectel_network_t;
+typedef ql_net_s* ql_net_t;
 
-quectel_network_t quectel_network_init(at_client_t client);
+/**
+ * @brief Initialize the Network instance
+ * @param client AT client handle used for underlying communication
+ * @return ql_net_t Handle to creat Network instance
+ */
+ql_net_t ql_net_init(at_client_t client);
 
-void quectel_network_set_param(quectel_network_t handle, QtNetworkParams type, void* value);
+/*
+ * @brief Get USIM status
+ * @param handle net client handle returned by ql_net_init()
+ * @return QL_NET_ERR_CODE_E Error code
+*/
+QL_NET_ERR_CODE_E ql_usim_get(ql_net_t handle);
 
-QtNetworkErrCode quectel_network_attach(quectel_network_t handle);
-int quectel_network_get_rssi(quectel_network_t handle);
+/**
+ * @brief Set network options
+ * 
+ * @param handle net client handle returned by ql_net_init()
+ * @param option Option type to set (see QL_NET_OPTION_E enum)
+ * @param ... Variable arguments depending on the option being set
+ * @return true if option was set successfully, false otherwise
+ */
+bool ql_net_set_opt(ql_net_t handle, QL_NET_OPTION_E option, ...);
 
-char* quectel_network_get_ip(quectel_network_t handle);
+/*
+ * @brief Attach to network
+ * @param handle net client handle returned by ql_net_init()
+ * @return QL_NET_ERR_CODE_E Error code
+*/
+QL_NET_ERR_CODE_E ql_net_attach(ql_net_t handle);
 
-void quectel_module_reboot(quectel_network_t handle);
+/*
+ * @brief Get RSSI
+ * @param handle net client handle returned by ql_net_init()
+ * @return RSSI value
+*/
+int ql_net_get_rssi(ql_net_t handle);
 
-void quectel_network_detach(quectel_network_t handle);
+/*
+ * @brief Get IP address
+ * @param handle net client handle returned by ql_net_init()
+ * @return IP address
+*/
+const char* ql_net_get_ip(ql_net_t handle);
 
-void quectel_network_deinit(quectel_network_t handle);
+/* @brief Check if network is OK.
+ * @param handle net client handle returned by ql_net_init()
+ * @return true if network is OK, false otherwise
+*/
+bool ql_net_is_ok(ql_net_t handle);
+
+/*
+ * @brief Reconnect to network
+ * @param handle net client handle returned by ql_net_init()
+ * @return QL_NET_ERR_CODE_E Error code
+*/
+QL_NET_ERR_CODE_E ql_net_reconnect(ql_net_t handle);
+
+/*
+ * @brief Reboot the module
+ * @param handle net client handle returned by ql_net_init()
+ * @return void
+*/
+void ql_module_reboot(ql_net_t handle);
+
+/*
+ * @brief Detach from network
+ * @param handle net client handle returned by ql_net_init()
+ * @return void
+*/
+void ql_net_detach(ql_net_t handle);
+
+/*
+ * @brief Deinitialize the Network instance
+ * @param handle net client handle returned by ql_net_init()
+ * @return void
+*/
+void ql_net_deinit(ql_net_t handle);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // __QUECTEL_NETWORK_H__
+#endif // __ql_NETWORK_H__

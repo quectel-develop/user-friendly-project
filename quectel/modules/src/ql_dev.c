@@ -1,7 +1,13 @@
 #include "QuectelConfig.h"
+#include "spi_flash.h"
+#include "bsp_driver_sd.h"
+#include "stm32f4xx_hal_cortex.h"
+#include "fatfs.h"
+#include "sdio.h"
 #include "main.h"
-#include "common_hal.h"
+#include "hal_common.h"
 #include "hal_uart.h"
+#include "qosa_system.h"
 #include "qosa_log.h"
 #include "sd_fatfs.h"
 
@@ -12,12 +18,6 @@
 #include "cmsis_os.h"
 #endif
 
-
-char* ql_get_mcu_firmware_version(void)
-{
-    LOG_I("Current version: %s", QUECTEL_PROJECT_VERSION);
-    return QUECTEL_PROJECT_VERSION;
-}
 
 void ql_module_hardware_init(void)
 {
@@ -37,6 +37,24 @@ void ql_module_hardware_init(void)
     qosa_task_sleep_ms(2000);
     LOG_D("Restart module done.");
 #endif
+}
+
+int cli_mcu_firmware_version(s32_t argc, char *argv[])
+{
+    LOG_I("Current version: %s", QUECTEL_PROJECT_VERSION);
+    return 0;
+}
+
+int cli_reboot(s32_t argc, char *argv[])
+{
+    LOG_I("system reboot...");
+    HAL_NVIC_SystemReset();
+    return 0;
+}
+
+void cli_reboot_help(void)
+{
+    LOG_I("reboot immediately.");
 }
 
 int32_t ql_spi_flash_selftest(void)
@@ -78,32 +96,30 @@ int32_t ql_spi_flash_selftest(void)
 }
 
 
-int32_t ql_sdcard_init(void)
+void ql_sdcard_hotplug_proc(void)
 {
-    return SD_INIT();
-}
-
-void ql_sdcard_deinit(void)
-{
-    return SD_DEINIT();
-}
-
-void ql_sdcard_hotplug_proc(bool onoff)
-{
-    printf("\r\n");
-    LOG_D("SD_CARD_DETECT, STATUS: %s", onoff? "ON" : "OFF");
-    if (onoff == true)
+    qosa_task_sleep_ms(200);
+    bool onoff = BSP_SD_IsDetected();
+    if (onoff == ql_sd_is_init())
+    {
+        LOG_I("sd cur state is %s", onoff ? "ON" : "OFF");
+        return;
+    }
+    LOG_D("sd card status change %s", onoff ? "ON" : "OFF");
+    if (onoff)
     {
         MX_SDIO_SD_Init();
+        qosa_task_sleep_ms(50);
         MX_FATFS_Init();
-        if(!SD_INIT())
-            SD_DEINIT();
+        if(!ql_sd_init())
+        {
+            LOG_E("Hot-swap failed. please try again later.");
+            ql_sd_deinit();
+            qosa_task_sleep_ms(2000);
+        }
     }
     else
     {
-        SD_DEINIT();
+        ql_sd_deinit();
     }
-    // LOG_H("#");
-    // fflush(stdout);
 }
-

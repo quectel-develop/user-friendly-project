@@ -73,7 +73,7 @@ int qosa_event_delete(osa_event_t eventRef)
 // 等待事件（逻辑或操作）
 int qosa_event_recv(osa_event_t eventRef, unsigned int event_mask, qosa_base_event_e option, int timeout)
 {
-    int ret, status = 0;
+    int status = 0;
     event_t *e = (event_t *)eventRef;
     unsigned int received_events;
 

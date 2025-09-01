@@ -24,32 +24,16 @@ static const char* s_body_start_description = "CONNECT\r\n";
 static const char* s_body_end_description = "\r\nOK\r\n";
 static const char* s_qt_http_option_strings[] =
 {
-    [QT_HTTP_OPT_CONTEXT_ID]       = "contextid",
-    [QT_HTTP_OPT_REQUEST_HEADER]   = "requestheader",
-    [QT_HTTP_OPT_RESPONSE_HEADER]  = "responseheader",
-    [QT_HTTP_OPT_SSL_CONTEXT_ID]   = "sslctxid",
-    [QT_HTTP_OPT_CONTENT_TYPE]     = "contenttype",
-    [QT_HTTP_OPT_AUTO_RESPONSE]    = "rspout/auto",
-    [QT_HTTP_OPT_CLOSE_INDICATION] = "closed/ind",
-    [QT_HTTP_OPT_WINDOW_SIZE]      = "windowsize",
-    [QT_HTTP_OPT_CLOSE_WAIT_TIME]  = "closewaittime",
-    [QT_HTTP_OPT_AUTH]             = "auth",
-    [QT_HTTP_OPT_CUSTOM_HEADER]    = "custom_header",
-    // [QT_HTTP_OPT_TIMEOUT]          = "timeout",
-    // [QT_HTTP_OPT_VERBOSE]          = "verbose",
-    // [QT_HTTP_OPT_FOLLOW_REDIRECTS] = "followredirects",
-    // [QT_HTTP_OPT_MAX_REDIRECTS]    = "maxredirects",
-    // [QT_HTTP_OPT_CA_INFO]          = "cainfo",
-    // [QT_HTTP_OPT_CLIENT_CERT]      = "clientcert",
-    // [QT_HTTP_OPT_CLIENT_KEY]       = "clientkey",
-    // [QT_HTTP_OPT_WRITE_FUNCTION]   = "writefunction",
-    // [QT_HTTP_OPT_WRITE_DATA]       = "writedata",
-    // [QT_HTTP_OPT_HEADER_FUNCTION]  = "headerfunction",
-    // [QT_HTTP_OPT_HEADER_DATA]      = "headerdata",
-    [QT_HTTP_OPT_UNKNOWN]          = "unknown"
+    [QL_HTTP_OPT_CONTEXT_ID]       = "contextid",
+    [QL_HTTP_OPT_REQUEST_HEADER]   = "requestheader",
+    [QL_HTTP_OPT_RESPONSE_HEADER]  = "responseheader",
+    [QL_HTTP_OPT_SSL_CONTEXT_ID]   = "sslctxid",
+    [QL_HTTP_OPT_CONTENT_TYPE]     = "contenttype",
+    [QL_HTTP_OPT_CUSTOM_HEADER]    = "custom_header",
+    [QL_HTTP_OPT_UNKNOWN]          = "unknown"
 };
 
-static void quectel_http_rsp_info(int result)
+static void ql_http_rsp_info(int result)
 {
     switch(result)
     {
@@ -65,7 +49,7 @@ static void quectel_http_rsp_info(int result)
     }
 }
 
-static void quectel_http_err_info(int result)
+static void ql_http_err_info(int result)
 {
     switch(result)
     {
@@ -104,76 +88,75 @@ static void quectel_http_err_info(int result)
     }
 }
 
-static void quectel_http_urc_error(struct at_client *client, const char *data, size_t size, void* arg)
-{
-    if (NULL == data || size <= 0)
-        return;
-    quectel_http_t handle = (quectel_http_t)arg;
-    sscanf(data, "+CME ERROR:%d", &handle->err_code);
-    quectel_http_err_info(handle->err_code);
-    qosa_sem_release(handle->sem);
-}
+// static void ql_http_urc_error(struct at_client *client, const char *data, size_t size, void* arg)
+// {
+//     if (NULL == data || size <= 0)
+//         return;
+//     ql_http_t handle = (ql_http_t)arg;
+//     sscanf(data, "+CME ERROR:%d", &handle->err_code);
+//     ql_http_err_info(handle->err_code);
+//     qosa_sem_release(handle->sem);
+// }
 
-static void quectel_http_urc_get(struct at_client *client, const char *data, size_t size, void* arg)
+static void ql_http_urc_get(struct at_client *client, const char *data, size_t size, void* arg)
 {
     if (NULL == data || size <= 0)
         return;
-    quectel_http_t handle = (quectel_http_t)arg;
+    ql_http_t handle = (ql_http_t)arg;
     sscanf(data, "+QHTTPGET: %d,%d,%d", &handle->err_code, &handle->rsp_code, &handle->content_length);
     handle->content_left = handle->content_length;
-    quectel_http_rsp_info(handle->rsp_code);
-    quectel_http_err_info(handle->err_code);
+    ql_http_rsp_info(handle->rsp_code);
+    ql_http_err_info(handle->err_code);
     qosa_sem_release(handle->sem);
 }
 
-static void quectel_http_urc_read(struct at_client *client, const char *data, size_t size, void* arg)
+static void ql_http_urc_read(struct at_client *client, const char *data, size_t size, void* arg)
 {
     if (NULL == data || size <= 0)
         return;
-    quectel_http_t handle = (quectel_http_t)arg;
+    ql_http_t handle = (ql_http_t)arg;
     sscanf(data, "+QHTTPREAD:%d", &handle->err_code);
-    quectel_http_err_info(handle->err_code);
+    ql_http_err_info(handle->err_code);
     qosa_sem_release(handle->sem);
 
-    handle->event = QT_HTTP_EVENT_READ;
 }
 
-static void quectel_http_urc_post(struct at_client *client, const char *data, size_t size, void* arg)
+static void ql_http_urc_post(struct at_client *client, const char *data, size_t size, void* arg)
 {
     if (NULL == data || size <= 0)
         return;
-    quectel_http_t handle = (quectel_http_t)arg;
+    ql_http_t handle = (ql_http_t)arg;
     sscanf(data, "+QHTTPPOST: %d,%d,%d", &handle->err_code, &handle->rsp_code, &handle->content_length);
     handle->content_left = handle->content_length;
-    quectel_http_rsp_info(handle->rsp_code);
-    quectel_http_err_info(handle->err_code);
+    ql_http_rsp_info(handle->rsp_code);
+    ql_http_err_info(handle->err_code);
     qosa_sem_release(handle->sem);
 }
 
-static void quectel_http_urc_put(struct at_client *client, const char *data, size_t size, void* arg)
+static void ql_http_urc_put(struct at_client *client, const char *data, size_t size, void* arg)
 {
     if (NULL == data || size <= 0)
         return;
-    quectel_http_t handle = (quectel_http_t)arg;
+    ql_http_t handle = (ql_http_t)arg;
     sscanf(data, "+QHTTPPUT: %d,%d,%d", &handle->err_code, &handle->rsp_code, &handle->content_length);
     handle->content_left = handle->content_length;
-    quectel_http_rsp_info(handle->rsp_code);
-    quectel_http_err_info(handle->err_code);
+    ql_http_rsp_info(handle->rsp_code);
+    ql_http_err_info(handle->err_code);
     qosa_sem_release(handle->sem);
 }
 
 static const struct at_urc s_http_urc_table[] =
 {
-    {"+CME ERROR:",    "\r\n",                 quectel_http_urc_error},
-    {"+QHTTPGET:",     "\r\n",                 quectel_http_urc_get},
-    {"+QHTTPREAD:",    "\r\n",                 quectel_http_urc_read},
-    {"+QHTTPPOST:",    "\r\n",                 quectel_http_urc_post},
-    {"+QHTTPPUT:",     "\r\n",                 quectel_http_urc_put}
+    // {"+CME ERROR:",    "\r\n",                 ql_http_urc_error},
+    {"+QHTTPGET:",     "\r\n",                 ql_http_urc_get},
+    {"+QHTTPREAD:",    "\r\n",                 ql_http_urc_read},
+    {"+QHTTPPOST:",    "\r\n",                 ql_http_urc_post},
+    {"+QHTTPPUT:",     "\r\n",                 ql_http_urc_put}
 };
 
-static void quectel_http_cb(const char *data, size_t len, void* arg)
+static void ql_http_cb(const char *data, size_t len, void* arg)
 {
-    quectel_http_t handle = (quectel_http_t)arg;
+    ql_http_t handle = (ql_http_t)arg;
     char body_desc[16] = {0};
     char body_data[HTTP_POST_MAX_LEN] = {0};
     int read_len = 0;
@@ -183,9 +166,9 @@ static void quectel_http_cb(const char *data, size_t len, void* arg)
         LOG_E("GET CONNECT FAILED %s", body_desc);
         return;
     }
-    if (handle->usr_cb != NULL)
+    if (handle->usr_write_cb != NULL)
     {
-        handle->usr_cb(QT_HTTP_USR_EVENT_START, NULL, 0, handle->user_data);
+        handle->usr_write_cb(QL_HTTP_USR_EVENT_START, NULL, 0, handle->user_write_data);
     }
     bool has_header = handle->response_header;
     while (handle->content_left > 0)
@@ -194,8 +177,8 @@ static void quectel_http_cb(const char *data, size_t len, void* arg)
         if (has_header)
         {
             memset(body_data, 0, HTTP_POST_MAX_LEN);
-            read_len = at_client_self_recv(handle->client, body_data, HTTP_POST_MAX_LEN, (handle->timeout - 1) * RT_TICK_PER_SECOND, 1);
-            handle->usr_cb(QT_HTTP_USR_EVENT_DATA, body_data, read_len, handle->user_data);
+            read_len = at_client_self_recv(handle->client, body_data, HTTP_POST_MAX_LEN, (handle->timeout - 1) * RT_TICK_PER_SECOND, 1, false);
+            handle->usr_write_cb(QL_HTTP_USR_EVENT_DATA, body_data, read_len, handle->user_write_data);
             if (strcmp(body_data, "\r\n") == 0)
             {
                 LOG_I("http header end");
@@ -206,9 +189,9 @@ static void quectel_http_cb(const char *data, size_t len, void* arg)
         }
         read_len = handle->content_left > HTTP_POST_MAX_LEN ? HTTP_POST_MAX_LEN : handle->content_left;
         read_len = at_client_obj_recv(handle->client, body_data, read_len, (handle->timeout - 1) * RT_TICK_PER_SECOND, false);
-        if (handle->usr_cb != NULL)
+        if (handle->usr_write_cb != NULL)
         {
-            handle->usr_cb(QT_HTTP_USR_EVENT_DATA, body_data, read_len, handle->user_data);
+            handle->usr_write_cb(QL_HTTP_USR_EVENT_DATA, body_data, read_len, handle->user_write_data);
         }
         else
         {
@@ -222,10 +205,11 @@ static void quectel_http_cb(const char *data, size_t len, void* arg)
     if (memcmp(body_desc, s_body_end_description, strlen(s_body_end_description)) != 0)
     {
         LOG_W("GET OK FAILED %s", body_desc);
+        qosa_sem_release(handle->sem);
     }
-    if (handle->usr_cb != NULL)
+    if (handle->usr_write_cb != NULL)
     {
-        handle->usr_cb(QT_HTTP_USR_EVENT_END, NULL, 0, handle->user_data);
+        handle->usr_write_cb(QL_HTTP_USR_EVENT_END, NULL, 0, handle->user_write_data);
     }
     // else
     // {
@@ -233,168 +217,213 @@ static void quectel_http_cb(const char *data, size_t len, void* arg)
     // }
 }
 
-static QtHttpErrCode quectel_http_set_url(quectel_http_t handle, at_response_t resp, const char *url)
+static QL_HTTP_ERR_CODE_E ql_http_set_url(ql_http_t handle, at_response_t resp, const char *url)
 {
     if (NULL == url)
-         return QT_HTTP_ERR_URL_INVALID;
+         return QL_HTTP_ERR_URL_INVALID;
+    ql_http_setopt(handle, QL_HTTP_OPT_SSL_CONTEXT_ID, handle->ssl.sslctxid);
     if (strstr((char *)url, "https://") != NULL)
     {
         handle->ssl.sslenble = 1;
-        handle->ssl.cacert_path = "http_ca.pem";
-        handle->ssl.clientcert_path = "http_user.pem";
-        handle->ssl.clientkey_path = "http_user_key.pem";
-        configure_ssl(&handle->ssl);
+        if (NULL == handle->ssl.cacert_dst_path)
+            handle->ssl.cacert_dst_path = "http_ca.pem";
+        if (NULL == handle->ssl.clientcert_dst_path)
+            handle->ssl.clientcert_dst_path = "http_user.pem";
+        if (NULL == handle->ssl.clientkey_dst_path)
+            handle->ssl.clientkey_dst_path = "http_user_key.pem";
+        handle->ssl.client = handle->client;
+        if (configure_ssl(&handle->ssl) != 0)
+            return QL_HTTP_ERR_SSL_CONFIG;
     }
     else if (strstr((char *)url, "http://") != NULL)
     {
     }
     else
-        return QT_HTTP_ERR_URL_INVALID;
+        return QL_HTTP_ERR_URL_INVALID;
 
-    at_obj_exec_cmd(handle->client, resp, "AT+QHTTPURL=%d,%d", strlen(url), handle->timeout);
+    if (at_obj_exec_cmd(handle->client, resp, "AT+QHTTPURL=%d,%d", strlen(url), handle->timeout) < 0)
+    {
+        return QL_HTTP_ERR_SET_URL;
+    }
     if ((at_resp_get_line_by_kw(resp, "CONNECT") == NULL))
     {
-        return QT_HTTP_ERR_CONNECT;
+        return QL_HTTP_ERR_CONNECT;
     }
 
     at_resp_set_info_new(resp, 128, 0, handle->timeout * RT_TICK_PER_SECOND, handle);
     if (at_obj_exec_cmd(handle->client, resp, "%s", url) < 0)
     {
-        return QT_HTTP_ERR_SET_URL;
+        return QL_HTTP_ERR_SET_URL;
     }
-    return QT_HTTP_OK;
+    return QL_HTTP_OK;
 }
 
-static QtHttpErrCode quectel_http_get(quectel_http_t handle, at_response_t resp, const char* data)
+static QL_HTTP_ERR_CODE_E ql_http_get(ql_http_t handle, at_response_t resp, const char* data, size_t data_len)
 {
     if (!handle->request_header)
     {
         if (at_obj_exec_cmd(handle->client, resp, "AT+QHTTPGET=%d", handle->timeout) < 0)
-            return QT_HTTP_ERR_GET;
+            return QL_HTTP_ERR_GET;
     }
     else
     {
         if (NULL == data)
-            return QT_HTTP_ERR_PARAM_INVALID;
+            return QL_HTTP_ERR_PARAM_INVALID;
         at_resp_set_info_new(resp, 128, 2, (300), handle);
-        at_obj_exec_cmd(handle->client, resp, "AT+QHTTPGET=%d,%d,%d", handle->timeout, strlen(data), handle->timeout);
+        if (at_obj_exec_cmd(handle->client, resp, "AT+QHTTPGET=%d,%d,%d", handle->timeout, data_len, handle->timeout) < 0)
+        {
+            return QL_HTTP_ERR_GET;
+        }   
         if ((at_resp_get_line_by_kw(resp, "CONNECT") == NULL))
         {
-            return QT_HTTP_ERR_GET;
+            return QL_HTTP_ERR_GET;
         }
         at_resp_set_info_new(resp, 64, 0, handle->timeout * RT_TICK_PER_SECOND, handle);
         if (at_obj_exec_cmd(handle->client, resp, "%s", data) < 0)
         {
-            return QT_HTTP_ERR_INPUT_BODY;
+            return QL_HTTP_ERR_INPUT_BODY;
         }
     }
-    return QT_HTTP_OK;
+    return QL_HTTP_OK;
 }
 
-static QtHttpErrCode quectel_http_post(quectel_http_t handle, at_response_t resp, const char* data)
+static QL_HTTP_ERR_CODE_E ql_http_post(ql_http_t handle, at_response_t resp, const char* data, size_t data_len)
 {
-    uint32_t len = 0;
-    if (data != NULL)
-        len = strlen(data);
+    if (data_len <= 0)
+        return QL_HTTP_ERR_PARAM_INVALID;
     at_resp_set_info_new(resp, 128, 2, handle->timeout * RT_TICK_PER_SECOND * 2, handle);
-    at_obj_exec_cmd(handle->client, resp, "AT+QHTTPPOST=%d,%d,%d", len, handle->timeout, handle->timeout);
-if ((at_resp_get_line_by_kw(resp, "CONNECT") == NULL))
+    if (at_obj_exec_cmd(handle->client, resp, "AT+QHTTPPOST=%d,%d,%d", data_len, handle->timeout, handle->timeout) < 0)
     {
-        return QT_HTTP_ERR_POST;
+        return QL_HTTP_ERR_POST;
     }
-    int sent = 0;
-    while (sent < len)
-    {
-        int chunk_size = (len - sent > HTTP_POST_MAX_LEN) ? HTTP_POST_MAX_LEN : len - sent;
-        at_client_obj_send(handle->client, data + sent, chunk_size, false);
-        sent += chunk_size;
-        LOG_I("send size %d", sent);
-    }
-    return QT_HTTP_OK;
-}
-
-static QtHttpErrCode quectel_http_post_file(quectel_http_t handle, at_response_t resp, const char* data)
-{
-    if (NULL == data)
-        return QT_HTTP_ERR_PARAM_INVALID;
-    if (at_obj_exec_cmd(handle->client, resp, "AT+QHTTPPOSTFILE=%s,%d", data, handle->timeout) < 0)
-        return QT_HTTP_ERR_POST_FILE;
-    return QT_HTTP_OK;
-}
-
-static QtHttpErrCode quectel_http_put(quectel_http_t handle, at_response_t resp, const char* data)
-{
-    size_t len = 0;
-    if (data != NULL)
-        len = strlen(data);
-    at_resp_set_info_new(resp, 128, 2, handle->timeout * RT_TICK_PER_SECOND * 2, handle);
-    at_obj_exec_cmd(handle->client, resp, "AT+QHTTPPUT=%d,%d,%d", len, handle->timeout, handle->timeout);
     if ((at_resp_get_line_by_kw(resp, "CONNECT") == NULL))
     {
-        return QT_HTTP_ERR_PUT;
+        return QL_HTTP_ERR_POST;
     }
     int sent = 0;
-    while (sent < len)
+    char *buffer = (char*)malloc(HTTP_POST_MAX_LEN);
+    while (sent < data_len)
     {
-        int chunk_size = (len - sent > HTTP_POST_MAX_LEN) ? HTTP_POST_MAX_LEN : len - sent;
-        at_client_obj_send(handle->client, data + sent, chunk_size, false);
-        sent += chunk_size;
+        if (handle->usr_read_cb != NULL)
+        {
+            size_t ret = handle->usr_read_cb(buffer, HTTP_POST_MAX_LEN, handle->user_read_data);
+            if (ret <= 0)
+                break;
+            at_client_obj_send(handle->client, buffer, ret, false);
+            sent += ret;
+        }
+        else
+        {
+            int chunk_size = (data_len - sent > HTTP_POST_MAX_LEN) ? HTTP_POST_MAX_LEN : data_len - sent;
+            at_client_obj_send(handle->client, data + sent, chunk_size, false);
+            sent += chunk_size;
+        }
         LOG_I("send size %d", sent);
     }
-    return QT_HTTP_OK;
+    free(buffer);
+    return QL_HTTP_OK;
 }
 
-static QtHttpErrCode quectel_http_put_file(quectel_http_t handle, at_response_t resp, const char* data, QtHttpFileType type)
+static QL_HTTP_ERR_CODE_E ql_http_post_file(ql_http_t handle, at_response_t resp, const char* data, size_t data_len)
 {
     if (NULL == data)
-        return QT_HTTP_ERR_PARAM_INVALID;
-    if (at_obj_exec_cmd(handle->client, resp, "AT+QHTTPPUTFILE=%s,%d,%d", data, handle->timeout, type) < 0)
-        return QT_HTTP_ERR_PUT_FILE;
-    return QT_HTTP_OK;
+        return QL_HTTP_ERR_PARAM_INVALID;
+    if (at_obj_exec_cmd(handle->client, resp, "AT+QHTTPPOSTFILE=%s,%d", data, handle->timeout) < 0)
+        return QL_HTTP_ERR_POST_FILE;
+    return QL_HTTP_OK;
 }
-static QtHttpErrCode quectel_http_read(quectel_http_t handle)
+
+static QL_HTTP_ERR_CODE_E ql_http_put(ql_http_t handle, at_response_t resp, const char* data, size_t data_len)
+{
+    if (NULL == data)
+        return QL_HTTP_ERR_PARAM_INVALID;
+    at_resp_set_info_new(resp, 128, 2, handle->timeout * RT_TICK_PER_SECOND * 2, handle);
+    if (at_obj_exec_cmd(handle->client, resp, "AT+QHTTPPUT=%d,%d,%d", data_len, handle->timeout, handle->timeout) < 0)
+    {
+        return QL_HTTP_ERR_PUT;
+    }
+    if ((at_resp_get_line_by_kw(resp, "CONNECT") == NULL))
+    {
+        return QL_HTTP_ERR_PUT;
+    }
+    int sent = 0;
+    char *buffer = (char*)malloc(HTTP_POST_MAX_LEN);
+    while (sent < data_len)
+    {
+        if (handle->usr_read_cb != NULL)
+        {
+            size_t ret = handle->usr_read_cb(buffer, HTTP_POST_MAX_LEN, handle->user_read_data);
+            if (ret <= 0)
+                break;
+            at_client_obj_send(handle->client, buffer, ret, false);
+            sent += ret;
+        }
+        else
+        {
+            int chunk_size = (data_len - sent > HTTP_POST_MAX_LEN) ? HTTP_POST_MAX_LEN : data_len - sent;
+            at_client_obj_send(handle->client, data + sent, chunk_size, false);
+            sent += chunk_size;
+        }
+        LOG_I("send size %d", sent);
+    }
+    free(buffer);
+    return QL_HTTP_OK;
+}
+
+static QL_HTTP_ERR_CODE_E ql_http_put_file(ql_http_t handle, at_response_t resp, const char* data, QL_HTTP_FILE_TYPE_E type)
+{
+    if (NULL == data)
+        return QL_HTTP_ERR_PARAM_INVALID;
+    if (at_obj_exec_cmd(handle->client, resp, "AT+QHTTPPUTFILE=%s,%d,%d", data, handle->timeout, type) < 0)
+        return QL_HTTP_ERR_PUT_FILE;
+    return QL_HTTP_OK;
+}
+static QL_HTTP_ERR_CODE_E ql_http_read(ql_http_t handle)
 {
     at_response_t query_resp = NULL;
    if (NULL == handle)
-        return QT_HTTP_ERR_NOINIT;
-    query_resp = at_create_resp_by_selffunc_new(1024, 0, handle->timeout * RT_TICK_PER_SECOND, quectel_http_cb, handle);
-    if (at_exec_cmd(query_resp, "AT+QHTTPREAD=%d", handle->timeout) < 0)
+        return QL_HTTP_ERR_NOINIT;
+    query_resp = at_create_resp_by_selffunc_new(1024, 0, handle->wait_time * RT_TICK_PER_SECOND, ql_http_cb, handle);
+    if (at_obj_exec_cmd(handle->client, query_resp, "AT+QHTTPREAD=%d", handle->wait_time) < 0)
     {
         at_delete_resp(query_resp);
-        return QT_HTTP_ERR_READ;
+        return QL_HTTP_ERR_READ;
     }
     at_delete_resp(query_resp);
-    qosa_sem_wait(handle->sem, QOSA_WAIT_FOREVER);
-    if (handle->err_code != QT_HTTP_OK)
+    qosa_sem_wait(handle->sem, (handle->wait_time +1) * RT_TICK_PER_SECOND);
+    if (handle->err_code != QL_HTTP_OK)
         return handle->err_code;
-    return QT_HTTP_OK;
+    return QL_HTTP_OK;
 }
 
-quectel_http_t quectel_http_init(at_client_t client)
+ql_http_t ql_http_init(at_client_t client)
 {
-    quectel_http_t handle = (quectel_http_t)malloc(sizeof(quectel_http_s));
+    ql_http_t handle = (ql_http_t)malloc(sizeof(ql_http_s));
     if (NULL == handle)
     {
         LOG_E("no memory for AT client response object.");
         return NULL;
     }
     handle->client = client;
-    handle->timeout = 10;
+    handle->timeout = 60;
+    handle->wait_time = 60;
     handle->request_header = false;
-    handle->file_type = QT_HTTP_FILE_BOTH_HEADERS_BODY;
+    handle->response_header = false;
+    handle->file_type = QL_HTTP_FILE_BOTH_HEADERS_BODY;
     handle->content_length = 0;
     handle->content_left = 0;
-    handle->event = QT_HTTP_EVENT_REQUEST_OK;
-    handle->usr_cb = NULL;
-    handle->user_data = NULL;
+    handle->usr_write_cb = NULL;
+    handle->usr_read_cb  = NULL;
+    handle->user_write_data = NULL;
+    handle->user_read_data = NULL;
     handle->rsp_code = 0;
     handle->err_code = 0;
     handle->data = NULL;
     handle->ssl.sslenble = 0;
     handle->ssl.ssltype = 0;
     handle->ssl.sslctxid = 0;
-    handle->ssl.ciphersuite = 0xFF;
-    handle->ssl.seclevel = SEC_LEVEL_SERVER_AUTHENTICATION;
+    handle->ssl.ciphersuite = 0xFFFF;
+    handle->ssl.seclevel = SEC_LEVEL_NO_AUTHENTICATION;
     handle->ssl.sslversion = SSL_VERSION_ALL;
     qosa_sem_create(&handle->sem, 0);
     if (!s_global_http_init)
@@ -405,25 +434,25 @@ quectel_http_t quectel_http_init(at_client_t client)
     return handle;
 }
 
-void quectel_http_set_ssl(quectel_http_t handle, ql_SSL_Config config)
+void ql_http_set_ssl(ql_http_t handle, ql_SSL_Config config)
 {
     handle->ssl = config;
 }
 
-bool quectel_http_setopt(quectel_http_t handle, QtHttpOption option, ...)
+bool ql_http_setopt(ql_http_t handle, QL_HTTP_OPTION_E option, ...)
 {
     va_list arg;
     at_response_t resp = NULL;
     bool ret = false;
     char *option_content = NULL;
     if (NULL == handle)
-        return QT_HTTP_ERR_NOINIT;
+        return QL_HTTP_ERR_NOINIT;
     resp = at_create_resp_new(256, 0, 1000, handle);
     va_start(arg, option);
 
     switch (option)
     {
-        case QT_HTTP_OPT_CONTEXT_ID:
+        case QL_HTTP_OPT_CONTEXT_ID:
         {
             uint8_t value = (uint8_t)va_arg(arg, int);
             if (value < 1 || value > 16)
@@ -433,7 +462,7 @@ bool quectel_http_setopt(quectel_http_t handle, QtHttpOption option, ...)
             ret = true;
             break;
         }
-        case QT_HTTP_OPT_REQUEST_HEADER:
+        case QL_HTTP_OPT_REQUEST_HEADER:
         {
             handle->request_header = (bool)va_arg(arg, int);
             option_content = (char*)malloc(4);
@@ -441,7 +470,7 @@ bool quectel_http_setopt(quectel_http_t handle, QtHttpOption option, ...)
             ret = true;
             break;
         }
-        case QT_HTTP_OPT_RESPONSE_HEADER:
+        case QL_HTTP_OPT_RESPONSE_HEADER:
         {
             handle->response_header = (bool)va_arg(arg, int);
             option_content = (char*)malloc(4);
@@ -449,7 +478,7 @@ bool quectel_http_setopt(quectel_http_t handle, QtHttpOption option, ...)
             ret = true;
             break;
         }
-        case QT_HTTP_OPT_SSL_CONTEXT_ID:
+        case QL_HTTP_OPT_SSL_CONTEXT_ID:
         {
             uint8_t value = (uint8_t)va_arg(arg, int);
             if (value > 5)
@@ -460,50 +489,18 @@ bool quectel_http_setopt(quectel_http_t handle, QtHttpOption option, ...)
             ret = true;
         }
             break;
-        case QT_HTTP_OPT_CONTENT_TYPE:
+        case QL_HTTP_OPT_CONTENT_TYPE:
         {
 
-            QtHttpContentType value = (QtHttpContentType)va_arg(arg, int);
-            if (value > QT_HTTP_CONTENT_JPEG)
+            QL_HTTP_CONTENT_TYPE_E value = (QL_HTTP_CONTENT_TYPE_E)va_arg(arg, int);
+            if (value > QL_HTTP_CONTENT_JPEG)
                 break;
             option_content = (char*)malloc(4);
             snprintf(option_content, 4, "%d", value);
             ret = true;
-        }
             break;
-        case QT_HTTP_OPT_AUTO_RESPONSE:
-        {
-            bool value = (bool)va_arg(arg, int);
-            option_content = (char*)malloc(4);
-            snprintf(option_content, 4, "%d", value);
-            ret = true;
         }
-            break;
-        case QT_HTTP_OPT_CLOSE_INDICATION:
-        {
-            bool value = (bool)va_arg(arg, int);
-            option_content = (char*)malloc(4);
-            snprintf(option_content, 4, "%d", value);
-            ret = true;
-        }
-            break;
-        case QT_HTTP_OPT_WINDOW_SIZE:
-        {
-            uint32_t value = va_arg(arg, uint32_t);
-            option_content = (char*)malloc(12);
-            snprintf(option_content, 12, "%lu", value);
-            ret = true;
-        }
-            break;
-        case QT_HTTP_OPT_CLOSE_WAIT_TIME:
-        {
-            uint32_t value = va_arg(arg, uint32_t);
-            option_content = (char*)malloc(12);
-            snprintf(option_content, 12, "%lu", value);
-            ret = true;
-        }
-            break;
-        case QT_HTTP_OPT_CUSTOM_HEADER:
+        case QL_HTTP_OPT_CUSTOM_HEADER:
         {
             const char* value = va_arg(arg, const char*);
             option_content = (char*)malloc(strlen(value) + 4); // contain \"\"  and '\0'
@@ -512,32 +509,44 @@ bool quectel_http_setopt(quectel_http_t handle, QtHttpOption option, ...)
             ret = true;
             break;
         }
-        // case QT_HTTP_OPT_AUTH:
-        //     break;
-        case QT_HTTP_OPT_TIMEOUT:
+        case QL_HTTP_OPT_TIMEOUT:
             handle->timeout = va_arg(arg, uint32_t);
             at_delete_resp(resp);
             va_end(arg);
             return true;
-        case QT_HTTP_OPT_FILE_TYPE:
+        case QL_HTTP_OPT_WAIT_TIME:
+            handle->wait_time = va_arg(arg, uint32_t);
+            at_delete_resp(resp);
+            va_end(arg);
+            return true;
+        case QL_HTTP_OPT_FILE_TYPE:
             handle->file_type = va_arg(arg, uint32_t);
             at_delete_resp(resp);
             va_end(arg);
             return true;
 
-        case QT_HTTP_OPT_WRITE_FUNCTION:
-            handle->usr_cb = va_arg(arg, user_callback);
+        case QL_HTTP_OPT_WRITE_FUNCTION:
+            handle->usr_write_cb = va_arg(arg, user_write_callback);
             at_delete_resp(resp);
             va_end(arg);
             return true;
 
-        case QT_HTTP_OPT_WRITE_DATA:
-            handle->user_data = va_arg(arg, void*);
+        case QL_HTTP_OPT_READ_FUNCTION:
+            handle->usr_read_cb = va_arg(arg, user_read_callback);
             at_delete_resp(resp);
             va_end(arg);
-            LOG_D("handle->user_data %s",  (char*)handle->user_data);
             return true;
 
+        case QL_HTTP_OPT_WRITE_DATA:
+            handle->user_write_data = va_arg(arg, void*);
+            at_delete_resp(resp);
+            va_end(arg);
+            return true;
+       case QL_HTTP_OPT_READ_DATA:
+            handle->user_read_data = va_arg(arg, void*);
+            at_delete_resp(resp);
+            va_end(arg);
+            return true;
         default:
             ret = 0;
             break;
@@ -554,65 +563,65 @@ bool quectel_http_setopt(quectel_http_t handle, QtHttpOption option, ...)
     return ret;
 }
 
-QtHttpErrCode quectel_http_request(quectel_http_t handle, const char* url, QtHttpMethod method, const char* data)
+QL_HTTP_ERR_CODE_E ql_http_request(ql_http_t handle, const char* url, QL_HTTP_METHOD_E method, const char* data, size_t data_len)
 {
-    QtHttpErrCode err = QT_HTTP_OK;
+    QL_HTTP_ERR_CODE_E err = QL_HTTP_OK;
     at_response_t resp = NULL;
     if (NULL == handle)
-        return QT_HTTP_ERR_NOINIT;
+        return QL_HTTP_ERR_NOINIT;
     resp = at_create_resp_new(128, 2, handle->timeout * RT_TICK_PER_SECOND * 2, handle);
-    err = quectel_http_set_url(handle, resp, url);
-    if (err != QT_HTTP_OK)
+    err = ql_http_set_url(handle, resp, url);
+    if (err != QL_HTTP_OK)
     {
         at_delete_resp(resp);
         return err;
     }
-    at_resp_set_info_new(resp, 128, 0, handle->timeout * RT_TICK_PER_SECOND * 2, handle);
+    at_resp_set_info_new(resp, 128, 4, handle->timeout * RT_TICK_PER_SECOND * 2, handle);
     qosa_mutex_lock(handle->client->lock, QOSA_WAIT_FOREVER);
     switch (method)
     {
-    case QT_HTTP_METHORD_GET:
-        err = quectel_http_get(handle, resp, data);
+    case QL_HTTP_METHORD_GET:
+        err = ql_http_get(handle, resp, data, data_len);
         break;
-    case QT_HTTP_METHORD_POST:
-        err = quectel_http_post(handle, resp, data);
+    case QL_HTTP_METHORD_POST:
+        err = ql_http_post(handle, resp, data, data_len);
         break;
-    case QT_HTTP_METHORD_POST_FILE:
-        err = quectel_http_post_file(handle, resp, data);
+    case QL_HTTP_METHORD_POST_FILE:
+        err = ql_http_post_file(handle, resp, data, data_len);
         break;
-    case QT_HTTP_METHORD_PUT:
-        err = quectel_http_put(handle, resp, data);
+    case QL_HTTP_METHORD_PUT:
+        err = ql_http_put(handle, resp, data, data_len);
         /* code */
         break;
-    case QT_HTTP_METHORD_PUT_FILE:
-        err = quectel_http_put_file(handle, resp, data, handle->file_type);
+    case QL_HTTP_METHORD_PUT_FILE:
+        err = ql_http_put_file(handle, resp, data, handle->file_type);
         break;
     default:
         break;
     }
-    if (err != QT_HTTP_OK)
+    if (err != QL_HTTP_OK)
     {
         at_delete_resp(resp);
         qosa_mutex_unlock(handle->client->lock);
         return err;
     }
-    qosa_sem_wait(handle->sem, QOSA_WAIT_FOREVER);
+    qosa_sem_wait(handle->sem, (handle->timeout+1) * RT_TICK_PER_SECOND);
     at_delete_resp(resp);
-    if (handle->err_code != QT_HTTP_OK)
+    if (handle->err_code != QL_HTTP_OK)
     {
         qosa_mutex_unlock(handle->client->lock);
         return handle->err_code;
     }
-    if (NULL == handle->usr_cb)
+    if (NULL == handle->usr_write_cb)
         handle->data = (char*)malloc(handle->content_length);
-    err = quectel_http_read(handle);
+    err = ql_http_read(handle);
     qosa_mutex_unlock(handle->client->lock);
     return err;
 }
 
-int quectel_http_recv(quectel_http_t handle, char* buf, size_t size)
+int ql_http_recv(ql_http_t handle, char* buf, size_t size)
 {
-    if (NULL == handle || handle->usr_cb != NULL)
+    if (NULL == handle || handle->usr_write_cb != NULL)
         return 0;
     if (handle->content_left <= 0)
         return 0;
@@ -625,14 +634,14 @@ int quectel_http_recv(quectel_http_t handle, char* buf, size_t size)
     return need_read;
 }
 
-void quectel_http_deinit(quectel_http_t handle)
+void ql_http_deinit(ql_http_t handle)
 {
     if(NULL == handle)
         return;
     if (strstr(get_module_type_name(), "BG95") == NULL && strstr(get_module_type_name(), "BG96") == NULL)
     {
         at_response_t resp = at_create_resp_new(128, 2, handle->timeout * RT_TICK_PER_SECOND, handle);
-        at_exec_cmd(resp, "AT+QHTTPSTOP", handle->timeout);
+        at_obj_exec_cmd(handle->client, resp, "AT+QHTTPSTOP", handle->timeout);
         at_delete_resp(resp);
     }
 

@@ -13,29 +13,29 @@
 * <tr><td>2024-12-23 <td>1.0 <td>Larson.Li <td> Init
 * </table>
 **********************************************************************/
-#include <time.h>
 #include "stdarg.h"
 #include "qosa_def.h"
 #include "qosa_system.h"
+#include "qosa_time.h"
 #include "qosa_log.h"
 #include "debug_service.h"
 
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_DEBUG_PRINT__
 extern LogLevel g_debug_level;
-extern int32_t g_debug_mode; //0:debug, 1:release
+extern int32_t g_debug_mode;    // 0:debug, 1:release
 extern int32_t g_save_debug_flag;
 
 #include "ringbuffer.h"
 extern osa_sem_t g_debug_service_sem_id;
-extern struct ringbuffer g_log_rb;
+extern ringbuffer_t g_log_rb;
 
 void debug_print(const int level, const char *msg, const char *prefix, const char *suffix, const char *file, const char *func, const int line, const char *fmt,...)
 {
     va_list arglst;
     static osa_mutex_t debug_slock = NULL;
-	int ret = 0, total_size=0, size1=0, size2=0, size3=0;
+	int total_size=0, size1=0, size2=0, size3=0;
 	osa_task_t thread_id = qosa_task_get_task_id();
-	unsigned char DBG_BUFFER[DBG_BUFF_LEN]= {0};
+	char DBG_BUFFER[DBG_BUFF_LEN]= {0};
     int32_t status = QOSA_OK;
     // const char *tab_suffix = (strcmp(msg, "INPUT") != 0) ? "\t" : "";
     time_t now;
@@ -57,8 +57,6 @@ void debug_print(const int level, const char *msg, const char *prefix, const cha
         tm_info = localtime(&now);
         strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", tm_info);
 		va_start(arglst,fmt);
-		// vsnprintf(DBG_BUFFER,sizeof(DBG_BUFFER),fmt,arglst);
-		// printf("%s[%-5s][%24s][%32s():%04d][%4d] %s%s", prefix, msg, file, func, line, qosa_task_get_stack_space(thread_id), DBG_BUFFER, suffix);
 		memset(DBG_BUFFER, 0, sizeof(DBG_BUFFER));
 		if (g_debug_mode == 1)
 			size1 = snprintf(DBG_BUFFER+sizeof(total_size), sizeof(DBG_BUFFER), "%s", prefix);
@@ -69,8 +67,6 @@ void debug_print(const int level, const char *msg, const char *prefix, const cha
             else
                 size1 = snprintf(DBG_BUFFER+sizeof(total_size), sizeof(DBG_BUFFER), "%s%s [%-5s]  [%-10s]\t[%s():%d][%d]\t", prefix, timestamp, msg, file, func, line, qosa_task_get_stack_space(thread_id));
         }
-		//size1 = snprintf(DBG_BUFFER+sizeof(total_size), sizeof(DBG_BUFFER), "%s[%-5s][%24s][%32s():%04d][%4d/%4d][%x] ", prefix, msg, file, func, line, qosa_task_get_free_heap_size(thread_id), os_thread_get_free_heap_size(), thread_id);
-		//size1 = snprintf(DBG_BUFFER+sizeof(total_size), sizeof(DBG_BUFFER), "%s[%-5s][%24s][%32s():%04d][%4d][%4d/%4d][%x] ", prefix, msg, file, func, line, qosa_task_get_free_heap_size(thread_id), os_thread_get_min_free_heap_size(), os_thread_get_free_heap_size(), thread_id);
 		size2 = vsnprintf(DBG_BUFFER+size1+sizeof(total_size), sizeof(DBG_BUFFER)-size1, fmt, arglst);
 		size3 = snprintf(DBG_BUFFER+size1+size2+sizeof(total_size), sizeof(DBG_BUFFER)-size1-size2, "%s", suffix);
 		total_size = size1+size2+size3;
@@ -79,7 +75,7 @@ void debug_print(const int level, const char *msg, const char *prefix, const cha
 		#ifdef __QUECTEL_UFP_FEATURE_SUPPORT_DEBUG_SAVE__
 		if (g_save_debug_flag && g_log_rb.buffer)
 		{
-			ringbuffer_putstr(&g_log_rb, DBG_BUFFER, total_size + sizeof(total_size));
+			ringbuffer_put(&g_log_rb, (const uint8_t*)DBG_BUFFER, total_size + sizeof(total_size));
 			if (g_debug_service_sem_id)
 				qosa_sem_release(g_debug_service_sem_id);
 		}

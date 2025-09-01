@@ -3,7 +3,7 @@
 #include "cli_test_main.h"
 #include "ql_dev.h"
 #include "example_fs.h"
-#include "example_network.h"
+#include "example_net.h"
 #include "example_http.h"
 #include "example_mqtt.h"
 #include "example_ftp.h"
@@ -24,6 +24,7 @@ void user_main(void* argv)
     /* Restart the module */
     ql_module_hardware_init();
     qosa_task_sleep_sec(5);
+    ql_sd_init();
 
     /* AT Client init */
     at_client_init(128, 128);
@@ -31,19 +32,18 @@ void user_main(void* argv)
     example_network();
 
     #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_FILESYSTEM__
-    ql_fs_example_init();
+    example_file();
     #endif
 
     #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_FTP_S__
     example_ftp();
     #endif
-
     #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_HTTP_S__
     example_test_post();
     #endif
 
     #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_MQTT_S__
-    example_mqtt_test();
+    example_mqtt();
     #endif
 
 #endif /*  __QUECTEL_UFP_FEATURE_SUPPORT_CLI_TEST__ */

@@ -1,24 +1,19 @@
 #include "QuectelConfig.h"
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_SSL__
-#include <at.h>
-#include "ql_ssl.h"
-#include "ql_net.h"
-#include "debug_service.h"
-#include "broadcast_service.h"
-#include "at_socket_device.h"
-#include "ql_fs.h"
+#include <stdarg.h>
+#include "ql_file.h"
 #include "qosa_log.h"
+#include "ql_ssl.h"
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN64)
 #include "windows.h"
 #elif __linux__
 #else
-#include "cmsis_os.h"
 #include "ff.h"
 #endif
 
 // Function to send the AT+QSSLCFG command
-int ql_sslcfg_set(ql_sslcfg_type type, u8_t ssl_ctx_id, ...)
+static int ql_sslcfg_set(at_client_t client, ql_sslcfg_type type, u8_t ssl_ctx_id, ...)
 {
     char cmd[128];
     va_list args;
@@ -72,23 +67,23 @@ int ql_sslcfg_set(ql_sslcfg_type type, u8_t ssl_ctx_id, ...)
         break;
     default:
         va_end(args);
-        LOG_E("Unsupported configuration type\n");
+        LOG_E("Unsupported configuration type");
         return -1;
     }
     va_end(args);
 
     // Create response object
-    at_response_t resp = at_create_resp(128, 0, 500);
+    at_response_t resp = at_create_resp_new(128, 0, 500, NULL);
     if (resp == NULL)
     {
-        LOG_E("Unable to create response object.\n");
+        LOG_E("Unable to create response object");
         return -1;
     }
 
     // Send the AT command
-    if (at_exec_cmd(resp, cmd) < 0)
+    if (at_obj_exec_cmd(client, resp, cmd) < 0)
     {
-        LOG_E("AT command execution failed.\n");
+        LOG_E("AT command execution failed");
         at_delete_resp(resp);
         return -1;
     }
@@ -98,98 +93,61 @@ int ql_sslcfg_set(ql_sslcfg_type type, u8_t ssl_ctx_id, ...)
     return 0;
 }
 
-int ql_processFile(const char *fileName)
+static int ql_processFile(at_client_t client, const char *local,  const char *remote, bool is_path)
 {
-    FILINFO fileInfo;
-    FRESULT result;
-    char fullPath[30];
-
-    result = f_stat(fileName, &fileInfo);
-    if (result == QOSA_OK)
+    if (NULL == local || NULL == remote)
+        return -1;
+    if (is_path)
+        return ql_file_upload(client, local, remote);
+    QL_FILE file = ql_fopen(remote, QL_FILE_MODE_CREATE_OR_TRUNCATE);
+    if (NULL == file)
+        return -1;
+    int ret = ql_fwrite(local, 1, strlen(local), file);
+    if (ret < 0)
     {
-        LOG_I("[%s] Found in SD Card. File size: %lu bytes", fileName, fileInfo.fsize);
-
-        snprintf(fullPath, sizeof(fullPath), "0:%s", fileName);
-        ql_file_put_ex(fullPath, fileName, fileInfo.fsize);
-        return 0;
-    }
-    else if (result == FR_NO_FILE)
-    {
-
-        LOG_E("File does not exist.\n");
+        ql_fclose(file);
         return -1;
     }
-    else
-    {
-
-        LOG_E("Error occurred: %d\n", result);
-        return -1;
-    }
+    ql_fclose(file);
+    return 0;
 }
 
 // Function to configure SSL for FTP
 int configure_ssl(ql_SSL_Config *config)
 {
-    if (config->sslenble)
+    if (!config->sslenble)
+        return 0;
+    LOG_V("config->ciphersuite  0x%x",config->ciphersuite);
+    ql_sslcfg_set(config->client, QL_SSLCFG_CIPHERSUITE, config->sslctxid, config->ciphersuite);
+    ql_sslcfg_set(config->client, QL_SSLCFG_SECLEVEL, config->sslctxid, config->seclevel);
+    ql_sslcfg_set(config->client, QL_SSLCFG_SSLVERSION, config->sslctxid, config->sslversion);
+    if (0 == config->seclevel || config->seclevel > 2)
+        return 0;
+    if (ql_processFile(config->client, config->cacert_src, config->cacert_dst_path, config->src_is_path) != 0)
     {
-        // SSL is enabled, configure SSL settings using ql_sslcfg_set function
-        // Example:
-        LOG_V("config->ciphersuite  0x%x\n",config->ciphersuite);
-        ql_sslcfg_set(QL_SSLCFG_CIPHERSUITE, config->sslctxid, config->ciphersuite);
-        ql_sslcfg_set(QL_SSLCFG_SECLEVEL, config->sslctxid, config->seclevel);
-        ql_sslcfg_set(QL_SSLCFG_SSLVERSION, config->sslctxid, config->sslversion);
-        //    ql_file_del();
-        if (config->seclevel == 1)
+        LOG_E("[ca.pem] uploaded to UFS Fail");
+        return -1;
+    }
+    LOG_I("[UFS:ca.pem] upload done");
+    ql_sslcfg_set(config->client, QL_SSLCFG_CACERT, config->sslctxid, config->cacert_dst_path);
+    if (config->seclevel == 2)
+    {
+        if (ql_processFile(config->client, config->clientcert_src, config->clientcert_dst_path, config->src_is_path) != 0)
         {
-            // File_Moudle_Info fileList[1];
-            // if (ql_module_list_get("ca.pem", fileList, sizeof(fileList) / sizeof(fileList[0]), 1) != 0)
-            {
-                if (ql_processFile(config->cacert_path) != 0)
-                {
-                    LOG_E("[ca.pem] uploaded to UFS Fail.");
-                    return -1;
-                }
-                LOG_I("[UFS:ca.pem] upload done.");
-            }
-            ql_sslcfg_set(QL_SSLCFG_CACERT, config->sslctxid, config->cacert_path);
+            LOG_E("[user.pem] uploaded to UFS Fail");
+            return -1;
         }
-        else if (config->seclevel == 2)
+        LOG_I("[UFS:user.pem] upload done");
+        ql_sslcfg_set(config->client, QL_SSLCFG_CLIENTCERT, config->sslctxid, config->clientcert_dst_path);
+        if (ql_processFile(config->client, config->clientkey_src, config->clientkey_dst_path, config->src_is_path) != 0)
         {
-            // File_Moudle_Info fileList[1];
-            // if (ql_module_list_get("ca.pem", fileList, sizeof(fileList) / sizeof(fileList[0]), 1) != 0)
-            {
-                if (ql_processFile(config->cacert_path) != 0)
-                {
-                    LOG_E("[ca.pem] uploaded to UFS Fail.");
-                    return -1;
-                }
-                LOG_I("[UFS:ca.pem] upload done.");
-            }
-            // if (ql_module_list_get("user.pem", fileList, sizeof(fileList) / sizeof(fileList[0]), 1) != 0)
-            {
-                if (ql_processFile(config->clientcert_path) != 0)
-                {
-                    LOG_E("[user.pem] uploaded to UFS Fail.");
-                    return -1;
-                }
-                LOG_I("[UFS:user.pem] upload done.");
-            }
-            // if (ql_module_list_get("user_key.pem", fileList, sizeof(fileList) / sizeof(fileList[0]), 1) != 0)
-            {
-                if (ql_processFile(config->clientkey_path) != 0)
-                {
-                    LOG_E("[user_key.pem] uploaded to UFS Fail.");
-                    return -1;
-                }
-                LOG_I("[UFS:user_key.pem] upload done.");
-            }
+            LOG_E("[user_key.pem] uploaded to UFS Fail");
+            return -1;
+        }
+        LOG_I("[UFS:user_key.pem] upload done");
 
-            ql_sslcfg_set(QL_SSLCFG_CACERT, config->sslctxid, config->cacert_path);
-            ql_sslcfg_set(QL_SSLCFG_CLIENTCERT, config->sslctxid, config->clientcert_path);
-            ql_sslcfg_set(QL_SSLCFG_CLIENTKEY, config->sslctxid, config->clientkey_path);
-            ql_sslcfg_set(QL_SSLCFG_IGNORELOCALTIME, config->sslctxid, 1);
-        }
-        // Add more SSL configurations as needed
+        ql_sslcfg_set(config->client, QL_SSLCFG_CLIENTKEY, config->sslctxid, config->clientkey_dst_path);
+        ql_sslcfg_set(config->client, QL_SSLCFG_IGNORELOCALTIME, config->sslctxid, 1);
     }
     return 0; // Return success
 }
