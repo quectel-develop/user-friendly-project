@@ -5,7 +5,7 @@ set Project_Chip=%2
 set Project_Version=%3
 
 set cmd_7z=%CURDIR%tools\host\7z\7z.exe
-set compile_tools_file=%CURDIR%tools\toolchain.7z
+set compile_tools_file=%CURDIR%tools\packages\toolchain.7z.001
 set compile_tools_dir=%CURDIR%tools\toolchain
 set cmd_cmake=%compile_tools_dir%\cmake\bin\cmake.exe
 set cmd_python=%compile_tools_dir%\python\python.exe
