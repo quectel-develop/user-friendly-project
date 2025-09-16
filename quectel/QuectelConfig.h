@@ -1,5 +1,8 @@
 #ifndef QUECTEL_PROJECT_VERSION
-#define QUECTEL_PROJECT_VERSION "This version generated automatically if use build.bat"
+#define QUECTEL_PROJECT_VERSION "This version generated automatically if use build.bat/build.sh"
+#endif
+#ifndef QUECTEL_BUILD_ENV
+#define QUECTEL_BUILD_ENV "This version generated automatically if use build.bat/build.sh"
 #endif
 
 /**********************************************************

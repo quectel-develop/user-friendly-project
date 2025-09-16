@@ -5,14 +5,14 @@
             "name": "STM32-Base",
             "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/build",
-            "cmakeExecutable": "${sourceDir}/tools/toolchain/cmake/bin/cmake.exe",
+            "cmakeExecutable": "${sourceDir}/tools/linux/toolchain/cmake/bin/cmake",
             "environment": {
-                "PATH": "${sourceDir}/tools/toolchain/arm-gcc/bin"
+                "PATH": "${sourceDir}/tools/linux/toolchain/arm-gcc/bin"
             },
             "cacheVariables": {
-                "CMAKE_MAKE_PROGRAM": "${sourceDir}/tools/toolchain/mingw64/bin/make.exe",
-                "CMAKE_C_COMPILER": "arm-none-eabi-gcc.exe",
-                "CMAKE_CXX_COMPILER": "arm-none-eabi-g++.exe"
+                "CMAKE_MAKE_PROGRAM": "${sourceDir}/tools/linux/toolchain/make/bin/make",
+                "CMAKE_C_COMPILER": "arm-none-eabi-gcc",
+                "CMAKE_CXX_COMPILER": "arm-none-eabi-g++"
             }
         },
         {

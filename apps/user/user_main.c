@@ -13,7 +13,7 @@
 void user_main(void* argv)
 {
     LOG_D("Welcome to Quectel User Friendly Project !");
-    LOG_D("Current version: %s", QUECTEL_PROJECT_VERSION);
+    LOG_D("Current version: %s @%s", QUECTEL_PROJECT_VERSION, QUECTEL_BUILD_ENV);
 
 /* Cli test mode */
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_CLI_TEST__

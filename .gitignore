@@ -10,4 +10,5 @@ Debug/*
 Release/*
 ProjectInfo.json
 tools/scripts/backup/
-tools/toolchain/
+tools/windows/toolchain/
+tools/linux/toolchain/

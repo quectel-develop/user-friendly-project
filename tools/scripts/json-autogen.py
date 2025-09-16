@@ -5,17 +5,17 @@ from datetime import datetime
 
 # ===================== Configuration =====================
 CONFIG = {
-    "presets_file"      :   "CMakePresets.json",                # CMakePresets.txt文件路径
-    "vscode_path"       :   ".vscode",                          # .vscode目录路径
-    "c_cpp_file"        :   ".vscode/c_cpp_properties.json",    # c_cpp_properties.json文件路径
-    "tasks_file"        :   ".vscode/tasks.json",               # tasks_file.json文件路径
-    "launch_file"       :   ".vscode/launch.json",              # launch_file.json文件路径
-    "build_dir"         :   "build",                            # 构建输出文件夹
-    "mcu_parent_dir"    :   "system/platform/arm-cortex",       # MCU平台的父级目录
-    "backup_folder"     :   "tools/scripts/backup",             # 备份目录
-    "max_backups"       :   5,                                  # 最大备份数量
-    "config_file"       :   "tools/scripts/ProjectInfo.json",   # 配置文件路径
-    "chiplist_file"     :   "tools/scripts/ChipList.json"      # 芯片型号支持列表文件路径
+    "presets_file"      :   "CMakePresets.json",                # Path to CMakePresets.txt file
+    "vscode_path"       :   ".vscode",                          # Path to .vscode directory
+    "c_cpp_file"        :   ".vscode/c_cpp_properties.json",    # Path to c_cpp_properties.json
+    "tasks_file"        :   ".vscode/tasks.json",               # Path to tasks_file.json
+    "launch_file"       :   ".vscode/launch.json",              # Path to launch_file.json
+    "build_dir"         :   "build",                            # Output directory
+    "mcu_parent_dir"    :   "system/platform/arm-cortex",       # Parent directory for MCU platform
+    "backup_folder"     :   "tools/scripts/backup",             # Backup directory
+    "max_backups"       :   5,                                  # Maximum number of backups
+    "config_file"       :   "tools/scripts/ProjectInfo.json",   # Path to configuration file
+    "chiplist_file"     :   "tools/scripts/ChipList.json"       # Path to chip support list file
 }
 # =================================================
 
@@ -28,14 +28,14 @@ CMakePresets_Content = {
             "name": "STM32-Base",
             "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/build",
-            "cmakeExecutable": "${sourceDir}/tools/toolchain/cmake/bin/cmake.exe",
+            "cmakeExecutable": "${sourceDir}/tools/linux/toolchain/cmake/bin/cmake",
             "environment": {
-                "PATH": "${sourceDir}/tools/toolchain/arm-gcc/bin"
+                "PATH": "${sourceDir}/tools/linux/toolchain/arm-gcc/bin"
             },
             "cacheVariables": {
-                "CMAKE_MAKE_PROGRAM": "${sourceDir}/tools/toolchain/mingw64/bin/make.exe",
-                "CMAKE_C_COMPILER":   "arm-none-eabi-gcc.exe",
-                "CMAKE_CXX_COMPILER": "arm-none-eabi-g++.exe"
+                "CMAKE_MAKE_PROGRAM": "${sourceDir}/tools/linux/toolchain/make/bin/make",
+                "CMAKE_C_COMPILER":   "arm-none-eabi-gcc",
+                "CMAKE_CXX_COMPILER": "arm-none-eabi-g++"
             }
         },
         {
@@ -91,7 +91,7 @@ c_cpp_properties_Content = {
                 "UNICODE",
                 "_UNICODE"
             ],
-            "compilerPath": "${workspaceFolder}/tools/toolchain/mingw64/bin/gcc.exe",
+            "compilerPath": "${workspaceFolder}/tools/windows/toolchain/mingw64/bin/gcc",
             "cStandard": "gnu17",
             "cppStandard": "gnu++14",
             "intelliSenseMode": "gcc-arm"
@@ -105,7 +105,7 @@ tasks_Content = {
         {
             "type": "shell",
             "label": "Download",
-            "command": "./tools/toolchain/openocd/bin/openocd.exe",
+            "command": "./tools/linux/toolchain/openocd/bin/openocd",
             "args": [
                 "-f",
                 "interface/stlink.cfg",
@@ -133,8 +133,8 @@ launch_Content = {
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "serverpath": "./tools/toolchain/openocd/bin/openocd.exe",
-            "gdbPath": "./tools/toolchain/arm-gcc/bin/arm-none-eabi-gdb.exe",
+            "serverpath": "./tools/linux/toolchain/openocd/bin/openocd",
+            "gdbPath": "./tools/linux/toolchain/arm-gcc/bin/arm-none-eabi-gdb",
             "configFiles": [
                 "interface/stlink.cfg",
                 "target/stm32f4x.cfg"
@@ -163,22 +163,39 @@ class JsonManager:
         self.chiplist_path      = self.root_path / self.cfg["chiplist_file"]
         self.build_path         = self.cfg["build_dir"]
         self.mcu_parent_path    = self.cfg["mcu_parent_dir"]
-    
+
 
     def _create_CMakePreset(self):
-        if self.presets_path.exists():
-            return;
+        # if self.presets_path.exists():
+        #     return;
+        data = json.loads(json.dumps(CMakePresets_Content))
+
+        with open(self.config_path, "r", encoding="utf-8") as f:
+            Info_Bat = json.load(f)
+        buildEnv = Info_Bat["env"].lower()
+
+        if buildEnv == "windows":
+            makePath = f"${{sourceDir}}/tools/{buildEnv}/toolchain/mingw64/bin/make"
+        else:   # linux
+            makePath = f"${{sourceDir}}/tools/{buildEnv}/toolchain/make/bin/make"
+        cmakePath = f"${{sourceDir}}/tools/{buildEnv}/toolchain/cmake/bin/cmake"
+        gccPath = f"${{sourceDir}}/tools/{buildEnv}/toolchain/arm-gcc/bin"
+
+        data["configurePresets"][0]["cmakeExecutable"] = cmakePath
+        data["configurePresets"][0]["cacheVariables"]["CMAKE_MAKE_PROGRAM"] = makePath
+        data["configurePresets"][0]["environment"]["PATH"] = gccPath
+
         with open(self.presets_path, "w", encoding="utf-8") as f:
-            json.dump(CMakePresets_Content, f, indent=4, ensure_ascii=False)
+            json.dump(data, f, indent=4, ensure_ascii=False)
         print(f"-- [{self.presets_path}] generated successfully!")
-    
+
 
     def _create_c_cpp_properties(self):
         with open(self.c_cpp_path, "w", encoding="utf-8") as f:
             json.dump(c_cpp_properties_Content, f, indent=4, ensure_ascii=False)
         print(f"-- [{self.c_cpp_path}] generated successfully!")
-    
-    
+
+
     def _update_ProjectInfo(self):
         with open(self.chiplist_path, "r", encoding="utf-8") as f:
             Chip_List = json.load(f)
@@ -193,14 +210,14 @@ class JsonManager:
             macro       = Chip_List[chip][1]
             interface   = f"interface/stlink.cfg"
             target      = f"target/{chip[0:7].lower()}x.cfg"
-            
+
             if ProjectName == "Quectel_UFP_Chip_Date":
                 ProjectName = ProjectName.replace("Chip", chip)
                 ProjectName = ProjectName.replace("Date", datetime.now().strftime("%Y%m%d"))
             if chip.lower() == "windows":
                 series = "windows"
 
-            # 更新 ProjectInfo.json
+            # Update ProjectInfo.json
             Info_Bat.update({"chip": chip})
             Info_Bat.update({"version": ProjectName})
             Info_Bat.update({"series": series})
@@ -210,7 +227,7 @@ class JsonManager:
             Info_Bat.update({"interface": interface})
             Info_Bat.update({"target": target})
 
-            # 回写 ProjectInfo.json
+            # Write back to ProjectInfo.json
             with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(Info_Bat, f, indent=4, ensure_ascii=False)
 
@@ -221,7 +238,9 @@ class JsonManager:
         with open(self.config_path, "r", encoding="utf-8") as f:
             Info_Bat = json.load(f)
         ProjectName = Info_Bat["version"]
+        buildEnv = Info_Bat["env"].lower()
 
+        data["tasks"][0]["command"] = f"./tools/{buildEnv}/toolchain/openocd/bin/openocd"
         data["tasks"][0]["args"] = (
                 "-f",
                 Info_Bat["interface"],
@@ -230,7 +249,7 @@ class JsonManager:
                 "-c",
                 f"program {self.build_path}/{ProjectName}.elf verify reset exit" )
 
-        # 回写 tasks.json
+        # Write back to tasks.json
         with open(self.tasks_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
         # print(f"-- tasks.json configrated the version: [{ProjectName}.elf]")
@@ -245,16 +264,23 @@ class JsonManager:
         ProjectName = Info_Bat["version"]
         chip = Info_Bat["chip"]
         svd = Info_Bat["svd"]
+        buildEnv = Info_Bat["env"].lower()
+
+        openocd_path = f"./tools/{buildEnv}/toolchain/openocd/bin/openocd"
+        data["configurations"][0]["serverpath"] = openocd_path  # Configure OpenOCD path
+
+        gdb_path = f"./tools/{buildEnv}/toolchain/arm-gcc/bin/arm-none-eabi-gdb"
+        data["configurations"][0]["gdbPath"] = gdb_path         # Configure GDB path
 
         elfFile_path = f"{self.build_path}/{ProjectName}.elf"
-        data["configurations"][0]["executable"] = elfFile_path # 配置elf文件路径
+        data["configurations"][0]["executable"] = elfFile_path  # Configure elf file path
 
         svdFile_path = f"{self.mcu_parent_path}/{chip}/{svd}"
-        data["configurations"][0]["svdFile"] = svdFile_path # 配置svd文件路径
+        data["configurations"][0]["svdFile"] = svdFile_path     # Configure svd file path
 
-        data["configurations"][0]["configFiles"] = Info_Bat["interface"],Info_Bat["target"] # 配置device配置
-        
-        # 回写launch.json
+        data["configurations"][0]["configFiles"] = Info_Bat["interface"],Info_Bat["target"] # Device configuration
+
+        # Write back to launch.json
         with open(self.launch_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
         # print(f"-- launch.json configrated the version: [{ProjectName}.elf]")
