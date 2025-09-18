@@ -29,7 +29,7 @@
 #include "cmsis_os2.h"
 #endif
 
-typedef signed    int                   qosa_bool_t; /**< boolean type */
+typedef signed    int                   qosa_bool_t;    /**< boolean type */
 typedef unsigned char                   u8_t;
 typedef signed   char                   s8_t;
 typedef unsigned short                  u16_t;
@@ -38,11 +38,11 @@ typedef unsigned int                    u32_t;
 typedef signed   int                    s32_t;
 
 #ifdef ARCH_CPU_64BIT
-typedef signed long                     s64_t;     /**< 64bit integer type */
-typedef unsigned long                   u64_t;    /**< 64bit unsigned integer type */
+typedef signed long                     s64_t;      /**< 64bit integer type */
+typedef unsigned long                   u64_t;      /**< 64bit unsigned integer type */
 #else
-typedef signed long long                s64_t;     /**< 64bit integer type */
-typedef unsigned long long              u64_t;    /**< 64bit unsigned integer type */
+typedef signed long long                s64_t;      /**< 64bit integer type */
+typedef unsigned long long              u64_t;      /**< 64bit unsigned integer type */
 #endif
 
 
@@ -52,15 +52,15 @@ typedef unsigned long long              u64_t;    /**< 64bit unsigned integer ty
 #define QOSA_SUCCESS      0
 #define QOSA_FAILURE      -1
 
-#define QOSA_NO_WAIT      0          //no timeout
-#define QOSA_WAIT_FOREVER (-1)       //wait forever
-#define QOSA_MAX_DELAY    (0xffffffffUL)       //max delay
+#define QOSA_NO_WAIT      0                 //no timeout
+#define QOSA_WAIT_FOREVER (-1)              //wait forever
+#define QOSA_MAX_DELAY    (0xffffffffUL)    //max delay
 
 
 #define QOSA_NULL         0
 #define QOSA_INVALID_ADDRESS        0xdddddddd
 
-#define QOSA_UNUSED(x)    ((void)x)  //对定义的参数但是未使用，修复误报问题
+#define QOSA_UNUSED(x)    ((void)x)         //Fix the false warning for the unused defined parameters
 
 #ifndef MIN
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -137,7 +137,7 @@ typedef enum
     QOSA_PRIORITY_REALTIME = THREAD_PRIORITY_TIME_CRITICAL,
     QOSA_PRIORITY_HIGH = THREAD_PRIORITY_HIGHEST,
     QOSA_PRIORITY_ABOVE_NORMAL = THREAD_PRIORITY_ABOVE_NORMAL,
-    QOSA_PRIORITY_NORMAL = THREAD_PRIORITY_NORMAL,  //常用优先级
+    QOSA_PRIORITY_NORMAL = THREAD_PRIORITY_NORMAL,  //Common priority level
     QOSA_PRIORITY_BELOW_NORMAL = THREAD_PRIORITY_BELOW_NORMAL,
     QOSA_PRIORITY_LOW = THREAD_PRIORITY_LOWEST,
     QOSA_PRIORITY_IDLE = THREAD_PRIORITY_IDLE,
@@ -148,7 +148,7 @@ typedef enum
     QOSA_PRIORITY_REALTIME = osPriorityRealtime,
     QOSA_PRIORITY_HIGH = osPriorityHigh,
     QOSA_PRIORITY_ABOVE_NORMAL = osPriorityAboveNormal,
-    QOSA_PRIORITY_NORMAL = osPriorityNormal,  //常用优先级
+    QOSA_PRIORITY_NORMAL = osPriorityNormal,    //Common priority level
     QOSA_PRIORITY_BELOW_NORMAL = osPriorityBelowNormal,
     QOSA_PRIORITY_LOW = osPriorityLow,
     QOSA_PRIORITY_IDLE = osPriorityIdle,

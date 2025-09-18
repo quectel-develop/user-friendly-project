@@ -17,15 +17,15 @@
 #include "qosa_system.h"
 #include <stdlib.h>
 #include "qosa_log.h"
-// 事件结构体
+
+// Structure of the event
 typedef struct {
-    osa_sem_t   event_sem;           // 信号量用于通知事件发生
-    unsigned int event_flags;        // 事件标志位，每一位代表一个事件
-    osa_mutex_t event_mutex;         // 互斥锁用于保护事件标志的访问
+    osa_sem_t       event_sem;          // The semaphore is used to notify the occurrence of an event
+    unsigned int    event_flags;        // Event flag bit, each bit represents one event
+    osa_mutex_t     event_mutex;        // The mutex lock is used to protect the access to the event flag.
 } event_t;
 
-// 创建事件对象
-
+// Create an event object
 int qosa_event_create(osa_event_t *eventRef)
 {
     // FIX: FAEDEVELOP-135, Jerry Chen modified, 2025-06-23
@@ -53,7 +53,7 @@ int qosa_event_create(osa_event_t *eventRef)
     return QOSA_OK;
 }
 
-// 销毁事件对象
+// Destroy the event object
 int qosa_event_delete(osa_event_t eventRef)
 {
     event_t *e = (event_t *)eventRef;
@@ -70,7 +70,7 @@ int qosa_event_delete(osa_event_t eventRef)
     return QOSA_OK;
 }
 
-// 等待事件（逻辑或操作）
+// Wait event (logical OR operation)
 int qosa_event_recv(osa_event_t eventRef, unsigned int event_mask, qosa_base_event_e option, int timeout)
 {
     int status = 0;
@@ -98,7 +98,7 @@ int qosa_event_recv(osa_event_t eventRef, unsigned int event_mask, qosa_base_eve
         {
             qosa_mutex_unlock(e->event_mutex);
 
-            //todo:需要更新超时时间
+            //todo: need to update timeout
             status = qosa_sem_wait(e->event_sem, timeout);
 
             if (status != QOSA_OK)
@@ -115,7 +115,7 @@ int qosa_event_recv(osa_event_t eventRef, unsigned int event_mask, qosa_base_eve
     return received_events;
 }
 
-// 设置事件为触发状态
+// Set event to the triggered state
 int qosa_event_send(osa_event_t eventRef, u32_t flags)
 {
     event_t *e = (event_t *)eventRef;

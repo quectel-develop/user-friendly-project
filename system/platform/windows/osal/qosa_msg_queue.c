@@ -28,12 +28,12 @@ struct osa_event_data
 
 typedef struct
 {
-    qosa_type_t type_list;       /*!< 用于存储事件列表 */
-    u32_t    event_max_count; /*!< 事件最大个数 */
-    osa_sem_t   event_sem;       /*!< 对应事件通知的sem */
-    u32_t    event_size;      /*!< 对应注册事件类型结构体大小 */
-    u32_t    current_cnt;     /*!< 当前已缓存的event个数 */
-    osa_mutex_t event_mutex;     /*!< Event 操作互斥锁 */
+    qosa_type_t type_list;       /*!< Used to store event list */
+    u32_t       event_max_count; /*!< Maximum number of events */
+    osa_sem_t   event_sem;       /*!< Semaphore for event notification */
+    u32_t       event_size;      /*!< Size of the registered event type structure */
+    u32_t       current_cnt;     /*!< Current number of cached events */
+    osa_mutex_t event_mutex;     /*!< Event operation mutex lock */
 } OSA_EventHndl;
 
 /**
@@ -92,13 +92,13 @@ int qosa_msgq_create(osa_msgq_t *msgQRef, u32_t size, u32_t maxNumber)
 }
 
 /**
- * @brief 用于删除所创建的消息队列
+ * @brief Used to delete the created message queue
  *
  * @param[in] osa_msgq_t msgQRef
- *          - 消息队列指针句柄
+ *          - Message queue pointer handle
  *
  * @return int
- *        -  函数执行成功返回QOSA_OK, 否则返回一个负数
+ *        - Returns QOSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_msgq_delete(osa_msgq_t msgQRef)
 {
@@ -133,25 +133,25 @@ int qosa_msgq_delete(osa_msgq_t msgQRef)
 }
 
 /**
- * @brief 释放(发送)一个消息
+ * @brief Releases (sends) a message
  *
  * @param[in] osa_msgq_t msgQRef
- *          - 消息队列指针句柄
+ *          - Message queue pointer handle
  *
  * @param[in] u32_t size
- *          - 要获取存放到消息队列中的数据类型长度,要与创建时的size参数保持一致
+ *          - Length of the data type to be stored in the message queue, must be consistent with the size parameter during creation
  *
  * @param[in] uint8_t * value
- *          - 要释放的消息数据的首地址
+ *          - Starting address of the message data to be released
  *
  * @param[in] u32_t timeout
  *          - OSA_WAIT_FOREVER, OSA_NO_WAIT, or timeout
  *
  * @return int
- *       - 函数执行成功返回QOSA_OK, 否则返回一个负数
+ *       - Returns QOSA_OK if the function executes successfully, otherwise returns a negative number
  *
  * @note
- *     - 请注意，当消息队列已满时，发布可能会失败并返回负值
+ *     - Note that publishing may fail and return a negative value when the message queue is full
  */
 int qosa_msgq_release(osa_msgq_t msgQRef, u32_t size, uint8_t *value, u32_t timeout)
 {
@@ -209,24 +209,23 @@ int qosa_msgq_release(osa_msgq_t msgQRef, u32_t size, uint8_t *value, u32_t time
 }
 
 /**
- * @brief 等待一个消息的到达,当为OSA_WAIT_FOREVER时,如果消息队列满后
- *			  要等待
+ * @brief Waits for a message to arrive. When set to OSA_WAIT_FOREVER, it will wait if the message queue is full
  *
  * @param[in] osa_task_t task_ref
- *          - 线程指针句柄
+ *          - Thread pointer handle
  *
  * @param[out] uint8_t * recvMsg
- *          - 准备接收数据的首地址
+ *          - Starting address for receiving data
  *
  * @param[in] u32_t size
- *          - 要获取存放到消息队列中的数据类型长度,要与创建时的size参数保持一致
+ *          - Length of the data type to be stored in the message queue, must be consistent with the size parameter during creation
  *
  * @param[in] u32_t timeout
  *          - OSA_WAIT_FOREVER, OSA_NO_WAIT, or timeout
  *
  * @return int
- *       - 0 返回执行成功
- *       - 其他 表示执行失败
+ *       - 0 indicates successful execution
+ *       - Other values indicate execution failure
  */
 int qosa_msgq_wait(osa_msgq_t msgQRef, uint8_t *value, u32_t size, u32_t timeout)
 {
@@ -269,16 +268,16 @@ int qosa_msgq_wait(osa_msgq_t msgQRef, uint8_t *value, u32_t size, u32_t timeout
 }
 
 /**
- * @brief 获取消息队列中当前所储存的消息个数
+ * @brief Gets the current number of messages stored in the message queue
  *
  * @param[in] osa_msgq_t msgQRef
- *          - 消息队列指针句柄
+ *          - Message queue pointer handle
  *
  * @param[in] u32_t * cnt_ptr
- *          - 返回当前队列中的项目个数
+ *          - Returns the current number of items in the queue
  *
  * @return int
- *       - 函数执行成功返回QOSA_OK, 否则返回一个负数
+ *       - Returns QOSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_msgq_get_cnt(osa_msgq_t msgQRef, u32_t *cnt_ptr)
 {

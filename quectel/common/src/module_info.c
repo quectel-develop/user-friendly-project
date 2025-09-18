@@ -9,7 +9,7 @@ static const module_type_map_t s_module_type_map[] = {
     {"BG96",    MOD_TYPE_BG96},
     {"EC800M",  MOD_TYPE_EC800M},
     {"EC25",    MOD_TYPE_EC25}
-    // 可以继续扩展...
+    // Can be further expanded...
 };
 
 bool set_module_type(const char* type)

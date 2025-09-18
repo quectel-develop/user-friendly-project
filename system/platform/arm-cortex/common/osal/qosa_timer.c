@@ -1,12 +1,12 @@
 /*****************************************************************/ /**
 * @file qosa_temer.c
-* @brief 
+* @brief
 * @author larson.li@quectel.com
 * @date 2024-12-23
-* 
-* @copyright Copyright (c) 2023 Quectel Wireless Solution, Co., Ltd. 
+*
+* @copyright Copyright (c) 2023 Quectel Wireless Solution, Co., Ltd.
 * All Rights Reserved. Quectel Wireless Solution Proprietary and Confidential.
-* 
+*
 * @par EDIT HISTORY FOR MODULE
 * <table>
 * <tr><th>Date <th>Version <th>Author <th>Description
@@ -20,31 +20,31 @@ typedef void (*OSA_TimeFncMain)(void* argv);
 
 typedef struct
 {
-    void*           timerid;         /*!< 定时器句柄 */
-    void*           userArgv;        /*!< 用户参数 */
-    qosa_bool_t     cyclicalEn;      /*!< 是否为循环执行函数 */
-    qosa_bool_t     status;          /*!< 当前 cb执行状态 */
-    qosa_bool_t     func_is_running; /*!< CB 函数正在运行 */
-    qosa_bool_t     force_exit;      /*!< 强制退出 */
-    OSA_TimeFncMain fncMain;         /*!< 回调函数 */
+    void*           timerid;         /*!< Timer handle */
+    void*           userArgv;        /*!< User parameters */
+    qosa_bool_t     cyclicalEn;      /*!< Whether it is a cyclic execution function */
+    qosa_bool_t     status;          /*!< Current callback execution status */
+    qosa_bool_t     func_is_running; /*!< Callback function is running */
+    qosa_bool_t     force_exit;      /*!< Force exit */
+    OSA_TimeFncMain fncMain;         /*!< Callback function */
 } OSA_TimerHndl;
 
 /*********************************************************************************/
 
 /**
- * @brief 创建系统定时器
+ * @brief Creates a system timer
  *
  * @param[in] osa_timer_t * timerRef
- *          - 系统定时器指针句柄
+ *          - System timer pointer handle
  *
  * @param[in] void * callBackRoutine
- *          - 用于定时器到达时间后,主动通知用户的函数
+ *          - Function to actively notify the user when the timer expires
  *
  * @param[in] void * argv
- *          - 用户自定义callBackRoutine函数的入参
+ *          - User-defined parameter for the callBackRoutine function
  *
  * @return int
- *        - 函数执行成功返回QOSA_OK, 否则返回一个负数
+ *        - Returns QOSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_timer_create(osa_timer_t* timerRef, void (*callBackRoutine)(void*), void* argv)
 {
@@ -55,19 +55,19 @@ int qosa_timer_create(osa_timer_t* timerRef, void (*callBackRoutine)(void*), voi
 /*********************************************************************************/
 
 /**
- * @brief 控制系统定时器启动
+ * @brief Controls the system timer to start
  *
  * @param[in] osa_timer_t timerRef
- *          - 系统定时器指针句柄
+ *          - System timer pointer handle
  *
  * @param[in] u32_t set_Time
- *          - 设置定时器等待的时间间隔,单位ms
+ *          - Sets the timer wait interval, unit: ms
  *
  * @param[in] qosa_bool_t cyclicalEn
- *          - 为QOSA_TRUE时表示为循环定时器, QOSA_FALSE表示单次定时器
+ *          - QOSA_TRUE indicates a cyclic timer, QOSA_FALSE indicates a one-shot timer
  *
  * @return int
- *       - 函数执行成功返回QOSA_OK, 否则返回一个负数
+ *       - Returns QOSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_timer_start(osa_timer_t timerRef, u32_t set_Time, qosa_bool_t cyclicalEn)
 {
@@ -75,13 +75,13 @@ int qosa_timer_start(osa_timer_t timerRef, u32_t set_Time, qosa_bool_t cyclicalE
 }
 
 /**
- * @brief 控制系统定时器停止运行
+ * @brief Controls the system timer to stop running
  *
  * @param[in] osa_timer_t timerRef
- *          - 系统定时器指针句柄
+ *          - System timer pointer handle
  *
  * @return int
- *       - 函数执行成功返回QOSA_OK, 否则返回一个负数
+ *       - Returns QOSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_timer_stop(osa_timer_t timerRef)
 {
@@ -89,13 +89,13 @@ int qosa_timer_stop(osa_timer_t timerRef)
 }
 
 /**
- * @brief 判断系统定时器是否正在工作
+ * @brief Checks if the system timer is running
  *
  * @param[in] osa_timer_t timerRef
- *          - 系统定时器指针句柄
+ *          - System timer pointer handle
  *
  * @return qosa_bool_t
- *        - QOSA_TRUE表示正在工作, QOSA_FALSE表示未在工作
+ *        - QOSA_TRUE indicates it is running, QOSA_FALSE indicates it is not running
  */
 qosa_bool_t qosa_timer_is_running(osa_timer_t timerRef)
 {
@@ -103,16 +103,16 @@ qosa_bool_t qosa_timer_is_running(osa_timer_t timerRef)
 }
 
 /**
- * @brief 用于删除定时器,并释放定时器占用系统资源
+ * @brief Used to delete the timer and release system resources occupied by the timer
  *
  * @param[in] osa_timer_t timerRef
- *          - 系统定时器指针句柄
+ *          - System timer pointer handle
  *
  * @return int
- *       - 函数执行成功返回QOSA_OK, 否则返回一个负数
+ *       - Returns QOSA_OK if the function executes successfully, otherwise returns a negative number
  *
  * @note
- *     - 使用前,请先使用 osa_osa_timerStop 停止定时器运行
+ *     - Before use, please use osa_osa_timerStop to stop the timer first
  *
  * @see  osa_timer_stop , osa_timer_create
  */

@@ -19,10 +19,10 @@
 
 typedef struct
 {
-    u32_t    count;      // 当前信号量个数
-    u32_t    maxCount;   // 信号量最大个数
-    osa_mutex_t lock;       // 同步 count 锁
-    osa_sem_t   sem;        // 实际信号量
+    u32_t       count;      // Current semaphore count
+    u32_t       maxCount;   // Maximum semaphore count
+    osa_mutex_t lock;       // Synchronization lock for count
+    osa_sem_t   sem;        // Actual semaphore
 } OSA_SemHndl;
 
 int qosa_sem_create(osa_sem_t *semaRef, u32_t initialCount)
@@ -41,7 +41,7 @@ int qosa_sem_create(osa_sem_t *semaRef, u32_t initialCount)
         return QOSA_ERROR_NO_MEMORY;
     }
     memset(hndl, 0, sizeof(OSA_SemHndl));
-    // 创建锁，用于多线程使用时确保 count 没问题
+    // Create a lock to ensure count is correct when used by multiple threads
     ret = qosa_mutex_create(&hndl->lock);
     if (ret != QOSA_OK)
     {
@@ -66,14 +66,14 @@ int qosa_sem_create(osa_sem_t *semaRef, u32_t initialCount)
 }
 
 // /*
-//  * @brief 此处如果按照真实个数创建，则必须保证不能多次释放,否则会主动DUMP，因此先取消个数限制
+//  * @brief If created with the actual count, it must be ensured that it cannot be released multiple times, otherwise it will cause an active DUMP, so the count limit is removed for now
 //  *
 //  * @param[in] osa_sem_t * semaRef
-//  *          - 对应sem传入指针
+//  *          - Pointer to the semaphore
 //  * @param[in] osa_uint32_t * initialCount
-//  *          - 初始化sem的个数
+//  *          - Initial count of the semaphore
 //  * @param[in] osa_uint32_t * max_cnt
-//  *          - 最大sem创建个数
+//  *          - Maximum semaphore count
 //  */
 // int qosa_sem_create_ex(osa_sem_t *semaRef, u32_t initialCount, u32_t max_cnt)
 // {
@@ -123,19 +123,19 @@ int qosa_sem_wait(osa_sem_t semaRef, u32_t timeout)
     qosa_mutex_lock(hndl->lock, QOSA_WAIT_FOREVER);
     if (ret == QOSA_OK)
     {
-        // 信号量获取成功,count--
+        // Semaphore acquired successfully, count--
         hndl->count--;
         ret = QOSA_OK;
     }
-    else if (ret == -2 || ret == -3) //osErrorTimeout
+    else if (ret == -2 || ret == -3) // osErrorTimeout
     {
-        //信号量等待超时
+        // Semaphore wait timeout
         ret = QOSA_ERROR_SEMA_TIMEOUT_ERR;
     }
     else
     {
-        //printf("sem release error\n");
-        // 暂时没有其他错误定义
+        // printf("sem release error\n");
+        // No other error definitions for now
         ret = QOSA_ERROR_SEMA_TIMEOUT_ERR;
     }
     qosa_mutex_unlock(hndl->lock);
@@ -154,7 +154,7 @@ int qosa_sem_release(osa_sem_t semaRef)
     hndl = (OSA_SemHndl *)semaRef;
     qosa_mutex_lock(hndl->lock, QOSA_WAIT_FOREVER);
 
-    // 信号量个数小于最大值，则允许释放信号量
+    // If semaphore count is less than maximum, allow releasing semaphore
     if (hndl->count < hndl->maxCount)
     {
         ret = osSemaphoreRelease(hndl->sem);

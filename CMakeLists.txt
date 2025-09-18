@@ -139,7 +139,7 @@ add_link_options(-static -Wl,--start-group -lc -lm -Wl,--end-group)
 add_executable(${PROJECT_NAME}.elf ${SOURCES})
 
 # Set the pre-processor MACRO
-target_compile_definitions(${PROJECT_NAME}.elf PRIVATE QUECTEL_PROJECT_VERSION="${PROJECT_NAME}" PRIVATE QUECTEL_BUILD_ENV="LINUX")
+target_compile_definitions(${PROJECT_NAME}.elf PRIVATE QUECTEL_PROJECT_VERSION="${PROJECT_NAME}" PRIVATE QUECTEL_BUILD_ENV="WINDOWS")
 
 # Set output file paths
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)

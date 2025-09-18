@@ -21,7 +21,7 @@ static uint8_t ql_convert_seconds_to_TAU_format(uint32_t seconds)
 {
     uint8_t unit_bits = 0;
     uint8_t timer_value = 0;
-    
+
     if (seconds <= 62)
     {
         unit_bits = 0x03; timer_value = (seconds + 1) / 2;
@@ -50,7 +50,7 @@ static uint8_t ql_convert_seconds_to_TAU_format(uint32_t seconds)
     {
         unit_bits = 0x02; timer_value = 31;
     }
-    
+
     return (unit_bits << 5) | (timer_value & 0x1F);
 }
 
@@ -65,10 +65,10 @@ static uint8_t ql_convert_seconds_to_Active_format(uint32_t seconds)
     if (seconds == 0) {
         return 0xE0; // 11100000 (bits 6-8: 111)
     }
-    
+
     uint8_t unit_bits = 0;
     uint8_t timer_value = 0;
-    
+
     if (seconds <= 62)
     {
         unit_bits = 0x00; timer_value = (seconds + 1) / 2;
@@ -83,9 +83,9 @@ static uint8_t ql_convert_seconds_to_Active_format(uint32_t seconds)
     }
     else
     {
-        unit_bits = 0x02; timer_value = 31; // 最大值
+        unit_bits = 0x02; timer_value = 31; // Max
     }
-    
+
     return (unit_bits << 5) | (timer_value & 0x1F);
 }
 
@@ -95,7 +95,7 @@ static uint8_t ql_convert_seconds_to_Active_format(uint32_t seconds)
  * @param output_str Output buffer for binary string (must be at least 9 bytes)
  */
 static void ql_convert_byte_to_binary_str(uint8_t byte_value, char *output_str)
-{   
+{
     for (int i = 7; i >= 0; i--)
 	{
         output_str[7 - i] = ((byte_value >> i) & 0x01) ? '1' : '0';
@@ -113,12 +113,12 @@ uint32_t convert_TAU_binary_to_seconds(const char *binary_str)
     uint8_t byte_value = (uint8_t)strtol(binary_str, NULL, 2);
     uint8_t unit_bits = (byte_value & 0xE0) >> 5;
     uint8_t timer_value = byte_value & 0x1F;
-    
+
     switch (unit_bits)
 	{
 	case 0x03: // 011: 2 second units
 		return timer_value * 2;
-	case 0x04: // 100: 30 second units  
+	case 0x04: // 100: 30 second units
 		return timer_value * 30;
 	case 0x05: // 101: 1 minute units
 		return timer_value * 60;
@@ -141,16 +141,16 @@ uint32_t convert_TAU_binary_to_seconds(const char *binary_str)
 uint32_t convert_Active_binary_to_seconds(const char *binary_str)
 {
     uint8_t byte_value = (uint8_t)strtol(binary_str, NULL, 2);
-    
+
     uint8_t unit_bits = (byte_value & 0xE0) >> 5;
     uint8_t timer_value = byte_value & 0x1F;
-    
+
     // Check if deactivated
     if (unit_bits == 0x07) // 111
 	{
         return 0;
     }
-    
+
     switch (unit_bits)
 	{
         case 0x00: // 000: 2seconds units
@@ -158,7 +158,7 @@ uint32_t convert_Active_binary_to_seconds(const char *binary_str)
         case 0x01: // 001: 1 minute units
             return timer_value * 60;
         case 0x02: // 010: 6 minutes units
-            return timer_value * 360; // 6 × 60 = 360秒
+            return timer_value * 360; // 6 × 60 = 360 seconds
         default:
             return 0;
     }
@@ -198,7 +198,7 @@ int ql_psm_settings_read(at_client_t client, ql_psm_setting_s *settings)
 		char TAU[9] = {0};
 		char Active[9] = {0};
 		LOG_I("%s", line);
-        if (sscanf(line, "+CPSMS: %d,,,\"%[^\"]\",\"%[^\"]\"",&tmp, TAU, Active) == 3 || 
+        if (sscanf(line, "+CPSMS: %d,,,\"%[^\"]\",\"%[^\"]\"",&tmp, TAU, Active) == 3 ||
             sscanf(line, "+CPSMS: %d,%*[^,],%*[^,],\"%[^\"]\",\"%[^\"]\"",&tmp, TAU, Active) == 3)
 		{
 			settings->Mode = (bool)tmp;

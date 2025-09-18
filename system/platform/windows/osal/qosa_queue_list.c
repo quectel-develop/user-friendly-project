@@ -1,12 +1,12 @@
 /*****************************************************************/ /**
 * @file qosa_queue_list.c
-* @brief 
+* @brief
 * @author larson.li@quectel.com
 * @date 2024-12-23
-* 
-* @copyright Copyright (c) 2023 Quectel Wireless Solution, Co., Ltd. 
+*
+* @copyright Copyright (c) 2023 Quectel Wireless Solution, Co., Ltd.
 * All Rights Reserved. Quectel Wireless Solution Proprietary and Confidential.
-* 
+*
 * @par EDIT HISTORY FOR MODULE
 * <table>
 * <tr><th>Date <th>Version <th>Author <th>Description
@@ -20,9 +20,9 @@
 #define list_q_printf(...)
 
 /* NOTUSED */
-#define NOTUSED(i)                                                                                                                                             \
-    if (i)                                                                                                                                                     \
-    {                                                                                                                                                          \
+#define NOTUSED(i)      \
+    if (i)              \
+    {                   \
     }
 
 
@@ -712,13 +712,13 @@ void qosa_put_head(qosa_type_t* q_ptr, qosa_link_type_t* link_ptr)
     }
     else
     {
-        //拿到头结点
+        // Get the head node
         link_ptr->prev_ptr = (qosa_link_type_t*)&q_ptr->link;
-        //头结点的下一个节点
+        // The next node of the head node
         link_ptr->next_ptr = link_ptr->prev_ptr->next_ptr;
-        //头结点的下一个节点的前指针等于当前节点
+        // The next node of the head node points to the current node
         link_ptr->prev_ptr->next_ptr = link_ptr;
-        //当前节点的下一个节点的前一个节点等于自己
+        // The previous node of the next node points to the current node
         link_ptr->next_ptr->prev_ptr = link_ptr;
         q_ptr->cnt++;
     }

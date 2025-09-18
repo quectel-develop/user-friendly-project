@@ -18,29 +18,30 @@
 #include "qosa_system.h"
 #include "qosa_queue_list.h"
 #include "qosa_log.h"
+
 /**
- * @brief 线程创建并初始化函数
+ * @brief Thread creation and initialization function
  *
  * @param[in] osa_task_t * taskRef
- *          - 线程指针句柄
+ *          - Thread pointer handle
  *
  * @param[in] u32_t stackSize
- *          - 创建线程的栈空间大小
+ *          - Stack size of the created thread
  *
  * @param[in] uint8_t priority
- *          - 创建线程的优先级
+ *          - Priority of the created thread
  *
  * @param[in] char * taskName
- *          - 创建线程的名称
+ *          - Name of the created thread
  *
  * @param[in] void * taskStart
- *          - 线程创建成功后,新线程的入口函数
+ *          - Entry function of the new thread after successful creation
  *
  * @param[in] void * argv
- *          - 要传递给新线程入口函数的自定义参数
+ *          - Custom parameters to be passed to the new thread's entry function
  *
  * @return int
- *       - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *       - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_task_create(osa_task_t* taskRef, u32_t stackSize, uint8_t priority, char* taskName, void (*taskStart)(void*), void* argv, ...)
 {
@@ -58,15 +59,15 @@ int qosa_task_create(osa_task_t* taskRef, u32_t stackSize, uint8_t priority, cha
 }
 
 /**
- * @brief 线程停止并销毁函数
+ * @brief Thread stop and destroy function
  *
  * @param[in] osa_task_t taskRef
- *          - 线程指针句柄
+ *          - Thread pointer handle
  *
  * @return int
- *        - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *        - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  *
- * @note  注意在执行此函数时，需要保证在线程中申请的资源都已经释放，否则可能会引起内存泄露。
+ * @note  When executing this function, ensure that all resources applied for in the thread have been released, otherwise it may cause memory leaks.
  */
 int qosa_task_delete(osa_task_t taskRef)
 {
@@ -98,11 +99,10 @@ u32_t tick_from_millisecond(s32_t ms)
 };
 
 /**
- * @brief 线程毫秒定时器
+ * @brief Thread millisecond timer
  *
  * @param[in] u32_t ms
- *          - 所要休眠的毫秒时间
- *
+ *          - Millisecond time to sleep
  */
 void qosa_task_sleep_ms(u32_t ms)
 {
@@ -110,11 +110,10 @@ void qosa_task_sleep_ms(u32_t ms)
 }
 
 /**
- * @brief 线程秒级定时器
+ * @brief Thread second timer
  *
  * @param[in] u32_t s
- *          - 所要休眠的时间,单位秒
- *
+ *          - Time to sleep, unit: seconds
  */
 void qosa_task_sleep_sec(u32_t s)
 {
@@ -122,14 +121,14 @@ void qosa_task_sleep_sec(u32_t s)
 }
 
 /**
- * @brief 获取当前运行的task指针句柄
+ * @brief Gets the current running task pointer handle
  *
  * @param[out] osa_task_t * taskRef
- *           - 返回的当前线程指针句柄
+ *           - Returns the current thread pointer handle
  *
  * @return int
- *       - 0 返回执行成功
- *       - 其他 表示执行失败
+ *       - 0 indicates successful execution
+ *       - Other values indicate execution failure
  */
 osa_task_t qosa_task_get_current_ref(void)
 {

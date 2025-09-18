@@ -48,33 +48,33 @@ void debug_print(const int level, const char *msg, const char *prefix, const cha
 
 
 /**
- * @brief 初始化日志
+ * @brief Initializes the logger
  *
  * @param[in] LogLevel level
- *          - 日志打印等级
+ *          - Log printing level
  * @param[in] const char *file_path
- *          - 日志打印文件
- * @note 初始化日志打印，file_path 可以为NULL，为NULL时不再打印到文件
+ *          - Log output file path
+ * @note Initializes log printing. If file_path is NULL, logs will not be written to a file
  */
 void init_logger(LogLevel level, const char *file_path);
 
 /**
- * @brief 关闭日志
+ * @brief Closes the logger
  *
- * @note 结束后会关闭日志文件
+ * @note Closes the log file after completion
  */
 void destroy_logger(void);
 
 /**
- * @brief 调整日志打印等级
+ * @brief Adjusts the log printing level
  */
 void set_log_level(LogLevel level);
 
 /**
  * @param[in] int enable
- *          -使能日志写入文件
+ *          - Enables writing logs to a file
  *
- * @brief 0:不在写入 1:写入
+ * @brief 0: Disabled 1: Enabled
  */
 void enable_log_to_file(int enable);
 

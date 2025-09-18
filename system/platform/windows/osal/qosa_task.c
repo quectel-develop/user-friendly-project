@@ -19,8 +19,8 @@
 #include <windows.h>
 #include "qosa_log.h"
 
-#define QOSA_TASK_NAME_MAX     10  //task名字最大长度
-#define QOSA_DESTROY_MSG_MAX   30  //销毁msg最大数量
+#define QOSA_TASK_NAME_MAX     10  // Maximum length of task name
+#define QOSA_DESTROY_MSG_MAX   30  // Maximum number of destroy messages
 #define QOSA_DESTROY_TASK_SIZE (8 * 1024)
 
 typedef void* (*qosa_task_entry_func)(void*);
@@ -28,29 +28,29 @@ typedef void (*qosa_task_func_main)(void* argv);
 
 typedef struct
 {
-    qosa_link_type_t    list;                          /*!< 存储线程信息 */
-    HANDLE              task;                          /*!< 线程句柄 */
-    DWORD               thread_id;                     /*!< 线程id */
-    void*               user_argv;                     /*!< 线程入口函数参数 */
-    char                task_name[QOSA_TASK_NAME_MAX]; /*!< 线程名称 */
-    uint8_t             priority;                      /*!< 线程优先级 */
-    qosa_task_func_main func_main;                     /*!< app入口函数 */
-    osa_sem_t           sem;                           /*!< 用于同步数据 */
-    u32_t            cur_state;                        /*!< 线程运行状态 */
+    qosa_link_type_t    list;                          /*!< Stores thread information */
+    HANDLE              task;                          /*!< Thread handle */
+    DWORD               thread_id;                     /*!< Thread ID */
+    void*               user_argv;                     /*!< Thread entry function parameters */
+    char                task_name[QOSA_TASK_NAME_MAX]; /*!< Thread name */
+    uint8_t             priority;                      /*!< Thread priority */
+    qosa_task_func_main func_main;                     /*!< Application entry function */
+    osa_sem_t           sem;                           /*!< Used for data synchronization */
+    u32_t            cur_state;                        /*!< Thread running state */
 } qosa_task_hndl;
 
 /**
- * @brief 传递task handle
+ * @brief Passes task handle
  */
 typedef struct
 {
     qosa_task_hndl* hndl;
 } osa_destroy_msg_t;
 
-static int32_t     g_task_init_flag = FALSE;  // 是否已经被初始化
-static qosa_type_t g_task_list;               //保存task信息的链表
-static osa_task_t  g_destroy_task = NULL;     // 销毁task
-static osa_msgq_t  g_destroy_msg = NULL;      // 销毁队列
+static int32_t     g_task_init_flag = FALSE;  // Whether it has been initialized
+static qosa_type_t g_task_list;               // Linked list for storing task information
+static osa_task_t  g_destroy_task = NULL;     // Task for destruction
+static osa_msgq_t  g_destroy_msg = NULL;      // Destruction queue
 
 static void        qosa_task_self_destroy_handle(void* argv);
 static qosa_bool_t pthread_compare_with_name(void* node1, void* node2);
@@ -73,7 +73,7 @@ static qosa_bool_t pthread_compare_with_name(void* node1, void* node2)
 }
 
 /**
- * @brief 子线程
+ * @brief Child thread function
  */
 static void qosa_thread_func(LPVOID lpParam)
 {
@@ -90,19 +90,19 @@ static void qosa_thread_func(LPVOID lpParam)
         return NULL;
     }
 
-    //LOG_D("thread_id=%d", hndl->thread_id);
-    // 等待 create 把线程信息存入链表后再执行
+    // LOG_D("thread_id=%d", hndl->thread_id);
+    // Wait for create to store thread information in the linked list before executing
     qosa_sem_wait(hndl->sem, QOSA_WAIT_FOREVER);
     qosa_sem_delete(hndl->sem);
     hndl->sem = NULL;
 
-    // 上层task入口
+    // Upper-level task entry
     hndl->func_main(hndl->user_argv);
     qosa_task_delete(hndl);
 }
 
 /**
- * @brief 销毁task,线程内核资源需要在其他线程释放
+ * @brief Destroys task, thread kernel resources need to be released in other threads
  */
 static void qosa_task_self_destroy_handle(void* argv)
 {
@@ -124,14 +124,14 @@ static void qosa_task_self_destroy_handle(void* argv)
             continue;
         }
         hndl = msg.hndl;
-        // 检查等待销毁的task是否还在链表中,不存在则说明已经销毁了
+        // Check if the task to be destroyed still exists in the linked list, if not, it has already been destroyed
         check_hndl = qosa_linear_search(&g_task_list, pthread_compare_with_name, (void*)&hndl->thread_id);
         if (check_hndl == NULL)
         {
             continue;
         }
 
-        // 其他task销毁
+        // Destroy other tasks
         hndl->cur_state = 0;
         hndl->func_main = NULL;
 
@@ -151,35 +151,35 @@ static void qosa_task_self_destroy_handle(void* argv)
 /*********************************************************************************/
 
 /**
- * @brief 线程创建并初始化函数
+ * @brief Thread creation and initialization function
  *
  * @param[in] osa_task_t * taskRef
- *          - 线程指针句柄
+ *          - Thread pointer handle
  *
  * @param[in] u32_t stackSize
- *          - 创建线程的栈空间大小
+ *          - Stack size of the created thread
  *
  * @param[in] uint8_t priority
- *          - 创建线程的优先级
+ *          - Priority of the created thread
  *
  * @param[in] char * taskName
- *          - 创建线程的名称
+ *          - Name of the created thread
  *
  * @param[in] void * taskStart
- *          - 线程创建成功后,新线程的入口函数
+ *          - Entry function of the new thread after successful creation
  *
  * @param[in] void * argv
- *          - 要传递给新线程入口函数的自定义参数
+ *          - Custom parameters to be passed to the new thread's entry function
  *
  * @return int
- *       - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *       - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_task_create(osa_task_t* taskRef, u32_t stackSize, uint8_t priority, char* taskName, void (*taskStart)(void*), void* argv, ...)
 {
     int             status = QOSA_OK;
     qosa_task_hndl* hndl = NULL;
 
-    //初始化销毁线程
+    // Initialize destruction thread
     if (g_task_init_flag == FALSE)
     {
         qosa_init(&g_task_list);
@@ -212,7 +212,7 @@ int qosa_task_create(osa_task_t* taskRef, u32_t stackSize, uint8_t priority, cha
         goto exit;
     }
 
-    //创建线程并返回线程伪句柄
+    // Create thread and return thread pseudo-handle
     hndl->task = CreateThread(NULL, stackSize, qosa_thread_func, hndl, 0, NULL);
     if (hndl->task == NULL)
     {
@@ -222,7 +222,7 @@ int qosa_task_create(osa_task_t* taskRef, u32_t stackSize, uint8_t priority, cha
         goto exit;
     }
 
-    // 修改线程优先级
+    // Modify thread priority
     if (!SetThreadPriority(hndl->task, priority))
     {
         DWORD error = GetLastError();
@@ -230,10 +230,10 @@ int qosa_task_create(osa_task_t* taskRef, u32_t stackSize, uint8_t priority, cha
     }
 
     hndl->cur_state = 1;
-    //线程 id 是唯一的,线程伪句柄是不唯一的
+    // Thread ID is unique, thread pseudo-handle is not unique
     hndl->thread_id = GetThreadId(hndl->task);
 
-    // 保存到链表,用作查询
+    // Save to linked list for querying
     qosa_link(hndl, &hndl->list);
     qosa_put(&g_task_list, &hndl->list);
 
@@ -255,15 +255,15 @@ exit:
 }
 
 /**
- * @brief 线程停止并销毁函数
+ * @brief Thread stop and destroy function
  *
  * @param[in] osa_task_t taskRef
- *          - 线程指针句柄
+ *          - Thread pointer handle
  *
  * @return int
- *        - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *        - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  *
- * @note  注意在执行此函数时，需要保证在线程中申请的资源都已经释放，否则可能会引起内存泄露。
+ * @note  When executing this function, ensure that all resources applied for in the thread have been released, otherwise it may cause memory leaks.
  */
 int qosa_task_delete(osa_task_t taskRef)
 {
@@ -287,11 +287,11 @@ int qosa_task_delete(osa_task_t taskRef)
         hndl->sem = NULL;
     }
 
-    // 伪句柄
+    // Pseudo-handle
     DWORD thread_id = GetCurrentThreadId();
     if (thread_id == hndl->thread_id)
     {
-        // 在当前线程自毁
+        // Self-destruct in current thread
         msg.hndl = hndl;
         err = qosa_msgq_release(g_destroy_msg, sizeof(osa_destroy_msg_t), (uint8_t*)&msg, QOSA_NO_WAIT);
         if (err != 0)
@@ -299,14 +299,14 @@ int qosa_task_delete(osa_task_t taskRef)
             LOG_D("msg release fail");
             return -1;
         }
-        //结束当前线程,可以不调用，默认return后线程执行完
+        // End current thread, can be omitted as thread will finish after return by default
         ExitThread(0);
     }
     else
     {
-        // 强制结束其他线程
+        // Forcefully terminate other threads
         TerminateThread(hndl->task, 0);
-        // 释放资源
+        // Release resources
         CloseHandle(hndl->task);
         qosa_delete(&g_task_list, &hndl->list);
         LOG_D("task destroy:%s", hndl->task_name);
@@ -315,16 +315,16 @@ int qosa_task_delete(osa_task_t taskRef)
 }
 
 /**
- * @brief 获取当前线程运行状态
+ * @brief Gets the current thread running status
  *
  * @param[in] osa_task_t task_ref
- *          - 线程指针句柄
+ *          - Thread pointer handle
  *
  * @param[out] int32_t * status
- *           - 返回1 表示正在运行, 返回0 表示停止运行
+ *           - Returns 1 if running, 0 if stopped
  *
  * @return int
- *       - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *       - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_task_get_status(osa_task_t task_ref, int32_t* status)
 {
@@ -342,11 +342,10 @@ int qosa_task_get_status(osa_task_t task_ref, int32_t* status)
 }
 
 /**
- * @brief 线程毫秒定时器
+ * @brief Thread millisecond timer
  *
  * @param[in] u32_t ms
- *          - 所要休眠的毫秒时间
- *
+ *          - Millisecond time to sleep
  */
 void qosa_task_sleep_ms(u32_t ms)
 {
@@ -354,11 +353,10 @@ void qosa_task_sleep_ms(u32_t ms)
 }
 
 /**
- * @brief 线程秒级定时器
+ * @brief Thread second timer
  *
  * @param[in] u32_t s
- *          - 所要休眠的时间,单位秒
- *
+ *          - Time to sleep, unit: seconds
  */
 void qosa_task_sleep_sec(u32_t s)
 {
@@ -366,14 +364,14 @@ void qosa_task_sleep_sec(u32_t s)
 }
 
 /**
- * @brief 获取当前运行的task指针句柄
+ * @brief Gets the current running task pointer handle
  *
  * @param[out] osa_task_t * taskRef
- *           - 返回的当前线程指针句柄
+ *           - Returns the current thread pointer handle
  *
  * @return int
- *       - 0 返回执行成功
- *       - 其他 表示执行失败
+ *       - 0 indicates successful execution
+ *       - Other values indicate execution failure
  */
 osa_task_t qosa_task_get_current_ref(void)
 {

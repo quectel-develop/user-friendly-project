@@ -4,7 +4,7 @@
 
 typedef enum
 {
-    MOD_TYPE_DEFAULT,   // 默认
+    MOD_TYPE_DEFAULT,   // Default
     MOD_TYPE_BG95,      // BG95
     MOD_TYPE_BG96,      // BG96
     MOD_TYPE_EC800M,    // EC800M
@@ -14,8 +14,8 @@ typedef enum
 
 typedef struct
 {
-    const char* name; // 字符串类型名
-    Module_Type type; // 对应的模组类型
+    const char* name; // Module name
+    Module_Type type; // Module type
 } module_type_map_t;
 
 

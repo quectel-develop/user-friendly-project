@@ -12,7 +12,7 @@ static void ql_net_ntp(struct at_client *client, const char *data, size_t size, 
 {
     struct tm tm = {0};
     int tz_offset = 32;
-    char tz_sign; // 时区符号（+/-）
+    char tz_sign; // Time zone symbol (+/-)
     int tz_sign_factor = 1;
     int result = sscanf(data, "+QNTP: %*d,\"%d/%d/%d,%d:%d:%d%c%d\"",
             &tm.tm_year, &tm.tm_mon, &tm.tm_mday, &tm.tm_hour, &tm.tm_min, &tm.tm_sec, &tz_sign, &tz_offset);
@@ -22,7 +22,7 @@ static void ql_net_ntp(struct at_client *client, const char *data, size_t size, 
         tm.tm_year -= 1900;
         tm.tm_mon -= 1;
         tm.tm_hour += tz_sign_factor * tz_offset / 4;
-        tm.tm_isdst = -1;  // 自动判断夏令时
+        tm.tm_isdst = -1;  // Automatically judge DST
         update_ntp_time(mktime(&tm));
         qosa_sem_release(s_net_sem);
     }
@@ -301,7 +301,7 @@ static int ql_net_active(ql_net_t handle)
     if (at_obj_exec_cmd(handle->client, resp, "AT+QIACT=%d", handle->contextid) < 0)
     {
          LOG_E("network active failed.");
-         
+
         for (int i = 0; i < resp->line_counts; i++)
         {
             line = at_resp_get_line(resp, i + 1);
@@ -405,7 +405,7 @@ QL_NET_ERR_CODE_E ql_usim_get(ql_net_t handle)
     {
         return QL_NET_OK;
     }
-    return QL_NET_ERR_SIM; 
+    return QL_NET_ERR_SIM;
 }
 
 bool ql_net_set_opt(ql_net_t handle, QL_NET_OPTION_E option, ...)
@@ -495,7 +495,7 @@ QL_NET_ERR_CODE_E ql_net_attach(ql_net_t handle)
                 if (ql_net_active(handle) != 0)
                     return QL_NET_ERR_ACTIVE;
             }
-            else 
+            else
                 break;
         }
     }

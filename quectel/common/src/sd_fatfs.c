@@ -53,9 +53,9 @@ bool ql_sd_init(void)
 			LOG_D("SD card information!");
 			// can not print float
 			total_bytes = (uint64_t)hsd.SdCard.BlockSize * hsd.SdCard.BlockNbr;
-			total_gb = total_bytes / (1024 * 1024 * 1024);      // 整数部分（GB）
-			decimal_part = (total_bytes % (1024 * 1024 * 1024)) / (1024 * 1024) * 100 / 1024; // 小数部分（）
-			// 打印结果（格式：X.Y GB）
+			total_gb = total_bytes / (1024 * 1024 * 1024);      // Integer part (GB)
+			decimal_part = (total_bytes % (1024 * 1024 * 1024)) / (1024 * 1024) * 100 / 1024; // Decimal part
+			// Print result (Format: X.Y GB)
 			LOG_D("CardCapacity  : %lu.%02uGB", total_gb, decimal_part);// Total storage capacity (BlockSize × BlockNbr)
 
 			RES = f_getfree("0:", &free_clusters, &fs_ptr);

@@ -11,31 +11,31 @@ uint64_t qosa_get_uptime_milliseconds(void)
 }
 
 /**
- * 将十六进制字符串转换为字节序列。
+ * Converts a hexadecimal string to a byte sequence.
  *
- * @param buf 十六进制字符串的输入缓冲区。
- * @param len 十六进制字符串的长度，必须为偶数。
- * @param bufout 转换后的字节序列的输出缓冲区。
- * @return 如果转换成功，返回0；如果输入参数无效或字符串包含非十六进制字符，返回-1。
+ * @param buf Input buffer containing the hexadecimal string.
+ * @param len Length of the hexadecimal string, must be even.
+ * @param bufout Output buffer for the converted byte sequence.
+ * @return Returns 0 if conversion is successful; returns -1 if input parameters are invalid or the string contains non-hexadecimal characters.
  */
 int hexstr2byte(const char *buf, int len, char *bufout)
 {
-    int     ret = -1;  // 初始化返回值为-1，表示失败
+    int     ret = -1;  // Initialize return value to -1, indicating failure
     int     i = 0;
-    uint8_t low;       // 低四位十六进制字符转换的临时变量
-    uint8_t high;      // 高四位十六进制字符转换的临时变量
+    uint8_t low;       // Temporary variable for lower nibble conversion
+    uint8_t high;      // Temporary variable for higher nibble conversion
 
-    // 检查输入参数是否有效
+    // Check if input parameters are valid
     if (NULL == buf || len <= 0 || NULL == bufout)
     {
-        return ret;  // 如果参数无效，直接返回-1
+        return ret;  // Return -1 directly if parameters are invalid
     }
 
-    ret = 0;  // 设置返回值为0，表示成功
-    // 遍历十六进制字符串，每次处理两个字符
+    ret = 0;  // Set return value to 0, indicating success
+    // Iterate through the hexadecimal string, processing two characters at a time
     for (i = 0; i < len; i = i + 2)
     {
-        // 处理高四位十六进制字符
+        // Process the higher nibble hexadecimal character
         if (((buf[i]) >= '0') && (buf[i] <= '9'))
         {
             high = (uint8_t)(buf[i] - '0');
@@ -50,11 +50,11 @@ int hexstr2byte(const char *buf, int len, char *bufout)
         }
         else
         {
-            ret = -1;  // 如果字符不是有效的十六进制字符，设置返回值为-1
-            break;     // 并结束循环
+            ret = -1;  // Set return value to -1 if character is not a valid hexadecimal
+            break;     // and break out of the loop
         }
 
-        // 处理低四位十六进制字符
+        // Process the lower nibble hexadecimal character
         if (((buf[i + 1]) >= '0') && (buf[i + 1] <= '9'))
         {
             low = (char)(buf[i + 1] - '0');
@@ -69,26 +69,26 @@ int hexstr2byte(const char *buf, int len, char *bufout)
         }
         else
         {
-            ret = -1;  // 如果字符不是有效的十六进制字符，设置返回值为-1
-            break;     // 并结束循环
+            ret = -1;  // Set return value to -1 if character is not a valid hexadecimal
+            break;     // and break out of the loop
         }
 
-        // 将高低四位合并，存入输出缓冲区
+        // Combine high and low nibbles and store in output buffer
         bufout[i / 2] = (char)((high << 4) | (low & 0x0F));
     }
-    return ret;  // 返回转换结果
+    return ret;  // Return conversion result
 }
 
 /**
- * 将字节数据转换为十六进制字符串。
+ * Converts byte data to a hexadecimal string.
  *
- * @param bufin 输入的字节数据指针。
- * @param in_len 输入字节数据的长度。
- * @param bufout 输出的十六进制字符串指针。
- * @param out_len 输出十六进制字符串的最大长度。
- * @return 如果转换成功，返回0；如果参数错误，返回-1。
+ * @param bufin Pointer to input byte data.
+ * @param in_len Length of input byte data.
+ * @param bufout Pointer to output hexadecimal string.
+ * @param out_len Maximum length of output hexadecimal string.
+ * @return Returns 0 if conversion is successful; returns -1 if parameters are incorrect.
  *
- * @note 函数确保输出的十六进制字符串长度不超过out_len的一半。
+ * @note The function ensures the output hexadecimal string length does not exceed half of out_len.
  */
 int byte2hexstr(const char *bufin, int in_len, char *bufout, int out_len)
 {
@@ -97,32 +97,32 @@ int byte2hexstr(const char *bufin, int in_len, char *bufout, int out_len)
     uint8_t tmp_l = 0x0;
     uint8_t tmp_h = 0;
 
-    // 检查输入和输出参数是否有效
+    // Check if input and output parameters are valid
     if ((NULL == bufin) || (in_len <= 0) || (NULL == bufout) || (out_len <= 0))
     {
         return -1;
     }
 
-    // 计算实际可以转换的字节数量，确保不超过输出缓冲区的一半
+    // Calculate the actual number of bytes that can be converted, ensuring it doesn't exceed half of output buffer
     len = (in_len > out_len / 2) ? (out_len / 2) : in_len;
     len -= 1;
 
-    // 遍历每个字节，转换为两位十六进制字符
+    // Iterate through each byte, converting to two hexadecimal characters
     for (i = 0; i < len; i++)
     {
-        // 提取字节的高4位和低4位
+        // Extract the high and low nibbles of the byte
         tmp_h = (bufin[i] >> 4) & 0X0F;
         tmp_l = bufin[i] & 0x0F;
 
-        // 将高4位和低4位转换为对应的十六进制字符
+        // Convert high and low nibbles to corresponding hexadecimal characters
         bufout[2 * i] = (tmp_h > 9) ? (tmp_h - 10 + 'a') : (tmp_h + '0');
         bufout[2 * i + 1] = (tmp_l > 9) ? (tmp_l - 10 + 'a') : (tmp_l + '0');
     }
 
-    // 在字符串末尾添加终止符，标记字符串结束
+    // Add null terminator at the end of the string to mark its end
     bufout[2 * len] = '\0';
 
-    //转换成功，返回0
+    // Return 0 indicating successful conversion
     return 0;
 }
 

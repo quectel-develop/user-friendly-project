@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2025, FAE
- * @file ql_ftp.h 
+ * @file ql_ftp.h
  * @brief Quectel ftp interface definitions
  * Date           Author           Notes
  * 2025-7-18      Wells         first version
@@ -77,7 +77,7 @@ typedef struct ql_ftp_file_info
     char owner[32];                       // owner
     char group[32];                       // group
     long size;                            // size（byte）
-    char date[32];                        // modify data（如 "Jul 21 09:25"）
+    char date[32];                        // modify data (eg: "Jul 21 09:25")
     char name[255];                       // name
     struct ql_ftp_file_info *next;   // list next
 } ql_ftp_file_info_s;
@@ -114,7 +114,7 @@ ql_ftp_t ql_ftp_init(const char* host, u16_t port, at_client_t client);
 
 /**
  * @brief Set FTP client options
- * 
+ *
  * @param handle FTP client handle returned by ql_ftp_init()
  * @param option Option type to set (see QL_FTP_OPTION_E enum)
  * @param ... Variable arguments depending on the option being set
@@ -139,7 +139,7 @@ bool ql_ftp_set_ssl(ql_ftp_t handle, ql_SSL_Config config);
 QL_FTP_ERR_CODE_E ql_ftp_login(ql_ftp_t handle, const char* username, const char* password);
 
 ///////////////////////////////////////////////////////////////////////////////
-                    /* begin operate dir*/ 
+                    /* begin operate dir*/
 ///////////////////////////////////////////////////////////////////////////////
 /**
  * @brief ftp set cwd
@@ -184,7 +184,7 @@ QL_FTP_ERR_CODE_E ql_ftp_rename(ql_ftp_t handle, const char* old_name, const cha
  * @brief ftp list directory contained type,permission,links,owner,group,size,date,name
  * @param handle FTP client handle  returned by ql_ftp_init()
  * @param path Path, max bytes 255
- * @param[out] head Pointer to the linked list head of directory entries. 
+ * @param[out] head Pointer to the linked list head of directory entries.
  *                  On success, stores the list of affected files/directories.
  *                  Caller must free the list using ql_ftp_list_free().
  * @return QL_FTP_ERR_CODE_E Error code indicating request status
@@ -195,7 +195,7 @@ QL_FTP_ERR_CODE_E ql_ftp_list(ql_ftp_t handle, const char *path, ql_ftp_file_inf
  * @brief ftp list directory contain name
  * @param handle FTP client handle  returned by ql_ftp_init()
  * @param path Path, max bytes 255
- * @param[out] head Pointer to the linked list head of directory entries. 
+ * @param[out] head Pointer to the linked list head of directory entries.
  *                  On success, stores the list of affected files/directories.
  *                  Caller must free the list using ql_ftp_list_free().
  * @return QL_FTP_ERR_CODE_E Error code indicating request status
@@ -211,12 +211,12 @@ QL_FTP_ERR_CODE_E ql_ftp_nlist(ql_ftp_t handle, const char *path, ql_ftp_file_in
 */
 QL_FTP_ERR_CODE_E ql_ftp_mlsd(ql_ftp_t handle, const char *path, ql_ftp_file_info_s *info);
 ///////////////////////////////////////////////////////////////////////////////
-                    /* end operate dir*/ 
+                    /* end operate dir*/
 ///////////////////////////////////////////////////////////////////////////////
 
 
 ///////////////////////////////////////////////////////////////////////////////
-                    /* begin operate file*/ 
+                    /* begin operate file*/
 ///////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -262,7 +262,7 @@ QL_FTP_ERR_CODE_E ql_ftp_file_delete(ql_ftp_t handle, const char *remote_file_na
 */
 QL_FTP_ERR_CODE_E ql_ftp_file_get_modify_time(ql_ftp_t handle, const char *remote_file_name, char *time);
 ///////////////////////////////////////////////////////////////////////////////
-                    /* end operate file*/ 
+                    /* end operate file*/
 ///////////////////////////////////////////////////////////////////////////////
 
 /**

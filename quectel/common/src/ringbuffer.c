@@ -11,10 +11,10 @@
 
 /**
   * @brief  Initialize ringbuffer
-  * @param  rb      ringbuffer
-  * @param  bf_pool 内存池
-  * @param  size    数据大小
-  * @retval 执行结果码
+  * @param  rb      Ringbuffer
+  * @param  bf_pool Memory pool
+  * @param  size    Data size
+  * @retval Result code
   */
 int16_t ringbuffer_init(ringbuffer_t* rb, uint8_t* bf_pool, uint16_t size)
 {
@@ -31,9 +31,9 @@ int16_t ringbuffer_init(ringbuffer_t* rb, uint8_t* bf_pool, uint16_t size)
 
 
 /**
-  * @brief  计算ringbuffer已使用的数据长度
-  * @param  rb  ringbuffer
-  * @retval ringbuffer已使用的数据长度
+  * @brief  Calculate the length of data that has been used in the ringbuffer
+  * @param  rb  Ringbuffer
+  * @retval The length of data that has been used in the ringbuffer
   */
 uint16_t ringbuffer_used_length(ringbuffer_t* rb)
 {
@@ -42,9 +42,9 @@ uint16_t ringbuffer_used_length(ringbuffer_t* rb)
 
 
 /**
-  * @brief  计算ringbuffer剩余的数据长度
-  * @param  rb  ringbuffer
-  * @retval ringbuffer剩余的数据长度
+  * @brief  Calculate the remaining data length of the ringbuffer
+  * @param  rb  Ringbuffer
+  * @retval The remaining data length of the ringbuffer
   */
 uint16_t ringbuffer_remain_length(ringbuffer_t* rb)
 {
@@ -53,11 +53,11 @@ uint16_t ringbuffer_remain_length(ringbuffer_t* rb)
 
 
  /**
-  * @brief  向ringbuffer中写数据
-  * @param  rb          ringbuffer
-  * @param  data        要写入数据的指针
-  * @param  data_length 要写入数据的长度
-  * @retval 写入数据的长度
+  * @brief  Write data to the ringbuffer
+  * @param  rb          Ringbuffer
+  * @param  data        The pointer for writing data
+  * @param  data_length The length of the data to be written
+  * @retval The length of the data that has been written
   */
 uint16_t ringbuffer_put(ringbuffer_t* rb, const uint8_t* data, uint16_t data_length)
 {
@@ -83,11 +83,11 @@ uint16_t ringbuffer_put(ringbuffer_t* rb, const uint8_t* data, uint16_t data_len
 
 
   /**
-  * @brief  从ringbuffer中读取数据
-  * @param  rb          ringbuffer
-  * @param  data        存放数据指针
-  * @param  data_length 读取的数据长度
-  * @retval 读取的数据长度
+  * @brief  Read data from the ringbuffer
+  * @param  rb          Ringbuffer
+  * @param  data        Pointer for storing data
+  * @param  data_length The length of the data to be read
+  * @retval The length of the data that has been read
   */
 uint16_t ringbuffer_get(ringbuffer_t* rb, uint8_t* data, uint16_t data_length)
 {

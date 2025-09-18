@@ -190,11 +190,11 @@ static void shell_input_parse_thread_proc(void* pThreadParam)
 		}
 
 		qosa_uart_get_debug_input(&pData, &Size);
-		// taskENTER_CRITICAL(); // 禁用中断
+		// taskENTER_CRITICAL(); // Disable interrupts
         // LOG_V("\r\n");
         printf("\r\n");     // FIX: Input content will disappear when not using "LOG_VERBOSE" mode.
 		LOG_V("get = %s", pData);
-		// taskEXIT_CRITICAL(); // 重新启用中断
+		// taskEXIT_CRITICAL(); // Enable interrupts
 		debug_service_cmd_exec((const char*)pData);
 		// LOG_H("# ");
 		// fflush(stdout);
@@ -281,11 +281,11 @@ static void debug_service_thread_proc(void* pThreadParam)
 	unsigned int fnum;
 	unsigned char LOG_BUFFER[DBG_BUFF_LEN]= {0};
 
-	// 检查备份目录是否存在，不存在则创建
+	// Check if the backup directory exists. If it doesn't exist, create it.
 	f_res = f_stat(BACKUP_DIR, &fileInfo);
 	if (f_res == FR_NO_FILE)
 	{
-		f_res = f_mkdir(BACKUP_DIR);  // 创建目录
+		f_res = f_mkdir(BACKUP_DIR);  // Create directory
 		if (f_res != FR_OK)
 		{
 			LOG_E("Failed to create backup dir: %d", f_res);
@@ -295,23 +295,23 @@ static void debug_service_thread_proc(void* pThreadParam)
 		LOG_E("f_stat error for backup dir: %d", f_res);
 	}
 
-	// 1. 检查文件是否已存在
+	// 1. Check if the file already exists
 	f_res = f_stat(LOG_FILE, &fileInfo);
 	if (f_res == FR_OK)
 	{
-		// 文件存在，生成时间戳备份文件名
+		// File exists. Generate timestamp backup file name.
 		char backupFile[64];
 		time_t now = time(NULL);
 		struct tm *tm_now = localtime(&now);
 
-		// 格式化时间戳（示例：quectel_20230704_153025.log）
+		// Format the timestamp (eg: quectel_20230704_153025.log)
 		snprintf(backupFile, sizeof(backupFile),
 				"%s/quectel_%04d%02d%02d_%02d%02d%02d.log",
-				BACKUP_DIR,  // 可替换为 "" 直接放在根目录
+				BACKUP_DIR,  // Can be replaced by "", and placed directly in the root directory
 				tm_now->tm_year + 1900, tm_now->tm_mon + 1, tm_now->tm_mday,
 				tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
 
-		// 2. 重命名原文件（移动至备份）
+		// 2. Rename the original file (move it to the backup)
 		f_res = f_rename(LOG_FILE, backupFile);
 		if (f_res != FR_OK)
 		{

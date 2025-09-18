@@ -14,27 +14,27 @@
 * </table>
 **********************************************************************/
 #include <time.h>
-
 #include "qosa_def.h"
 #include "qosa_system.h"
 #include "qosa_log.h"
 #include "debug_service.h"
-// 日志模块
+
+// Logging module
 typedef struct
 {
-    LogLevel         level;        // 当前日志等级
-    FILE            *log_file;     // 日志文件
-    int              log_to_file;  // 是否写入文件 (0: 否, 1: 是)
-    CRITICAL_SECTION lock;         // 线程安全锁
+    LogLevel         level;        // Current log level
+    FILE            *log_file;     // Log file
+    int              log_to_file;  // Whether to write to file (0: No, 1: Yes)
+    CRITICAL_SECTION lock;         // Thread safety lock
 } Logger;
 
-// 全局日志实例
+// Global logger instance
 static Logger logger = {LOG_INFO, NULL};
 static char   g_printf_buf[1024] = {0};
 static char   time_str[20] = {0};
 static osa_task_t g_serial_input_thread_id =NULL;
 
-// 获取当前时间字符串
+// Get current time string
 static void get_current_time(char *buffer, size_t size)
 {
     time_t    now = time(NULL);
@@ -56,17 +56,17 @@ static void* cli_input_parse_thread_proc(void* pThreadParam)
 
 	while (1)
 	{
-        // 从标准输入读取一行数据
+        // Read a line of data from standard input
         memset(g_uart_input_buf, 0, MAX_LENGTH);
         if (fgets(g_uart_input_buf, MAX_LENGTH, stdin) != NULL)
         {
-            // 去除换行符
+            // Remove newline character
             size_t len = strlen(g_uart_input_buf);
             if (len > 0 && g_uart_input_buf[len - 1] == '\n')
             {
                 g_uart_input_buf[len - 1] = '\0';
             }
-            // 输出读取到的数据
+            // Output the read data
             printf("input:%s, len = %d(0x%x, 0x%x, 0x%x)\r\n", g_uart_input_buf, len, g_uart_input_buf[0], g_uart_input_buf[1], g_uart_input_buf[2]);
             debug_service_cmd_exec(g_uart_input_buf);
         }
@@ -74,7 +74,7 @@ static void* cli_input_parse_thread_proc(void* pThreadParam)
 	LOG_V("%s over",__FUNCTION__);
 }
 
-// 初始化日志模块
+// Initialize logging module
 void init_logger(LogLevel level, const char *file_path)
 {
     int ret = QOSA_OK;
@@ -99,7 +99,7 @@ void init_logger(LogLevel level, const char *file_path)
 	}
 }
 
-// 销毁日志模块
+// Destroy logging module
 void destroy_logger(void)
 {
     if (logger.log_file)
@@ -110,7 +110,7 @@ void destroy_logger(void)
     DeleteCriticalSection(&logger.lock);
 }
 
-// 设置日志等级
+// Set log level
 void set_log_level(LogLevel level)
 {
     EnterCriticalSection(&logger.lock);
@@ -118,13 +118,13 @@ void set_log_level(LogLevel level)
     LeaveCriticalSection(&logger.lock);
 }
 
-// 设置日志等级
+// Get log level
 int get_log_level(void)
 {
     return logger.level;
 }
 
-// 启用或禁用文件日志
+/// Enable or disable file logging
 void enable_log_to_file(int enable)
 {
     EnterCriticalSection(&logger.lock);
@@ -132,12 +132,12 @@ void enable_log_to_file(int enable)
     LeaveCriticalSection(&logger.lock);
 }
 
-// 打印日志 (延迟格式化)
+// Print log (delayed formatting)
 void log_message_impl(const int level, const char *msg, const char *prefix, const char *suffix, const char *file, const char *func, const int line, const char *fmt,...)
 {
     if (level < logger.level)
     {
-        return;  // 日志等级低于当前设置，直接返回
+        return;  // Log level is lower than current setting, return directly
     }
 
     EnterCriticalSection(&logger.lock);
@@ -146,16 +146,16 @@ void log_message_impl(const int level, const char *msg, const char *prefix, cons
     memset(time_str, 0, sizeof(time_str));
     get_current_time(time_str, sizeof(time_str));
 
-    // 格式化日志消息
+    // Format log message
     va_list args;
     va_start(args, fmt);
     vsnprintf(g_printf_buf, sizeof(g_printf_buf), fmt, args);
     va_end(args);
 
-    // 输出到控制台
+    // Output to console
 	printf("%s[%s][%-5s][%24s][%32s():%04d] %s%s", prefix, time_str, msg, file, func, line, g_printf_buf, suffix);
 
-    // 输出到文件
+    // Output to file
     if (logger.log_file)
     {
         fprintf(logger.log_file, "[%s][%-5s][%24s][%32s():%04d] %s\n", time_str, msg, file, func, line, g_printf_buf);
@@ -164,4 +164,3 @@ void log_message_impl(const int level, const char *msg, const char *prefix, cons
 
     LeaveCriticalSection(&logger.lock);
 }
-

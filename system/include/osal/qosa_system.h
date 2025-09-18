@@ -73,225 +73,224 @@ typedef void* osa_event_t;
 int qosa_msgq_create(osa_msgq_t* msgQRef, u32_t size, u32_t maxNumber);
 
 /**
- * @brief 用于删除所创建的消息队列
+ * @brief Used to delete the created message queue
  *
  * @param[in] osa_msgq_t msgQRef
- *          - 消息队列指针句柄
+ *          - Message queue pointer handle
  *
  * @return int
- *        -  函数执行成功返回OSA_OK, 否则返回一个负数
+ *        - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_msgq_delete(osa_msgq_t msgQRef);
 
 /**
- * @brief 释放(发送)一个消息
+ * @brief Releases (sends) a message
  *
  * @param[in] osa_msgq_t msgQRef
- *          - 消息队列指针句柄
+ *          - Message queue pointer handle
  *
  * @param[in] u32_t size
- *          - 要获取存放到消息队列中的数据类型长度,要与创建时的size参数保持一致
+ *          - Length of the data type to be stored in the message queue, must be consistent with the size parameter during creation
  *
  * @param[in] uint8_t * value
- *          - 要释放的消息数据的首地址
+ *          - Starting address of the message data to be released
  *
  * @param[in] u32_t timeout
  *          - OSA_WAIT_FOREVER, OSA_NO_WAIT, or timeout
  *
  * @return int
- *       - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *       - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  *
  * @note
- *     - 请注意，当消息队列已满时，发布可能会失败并返回负值
+ *     - Note that publishing may fail and return a negative value when the message queue is full
  */
 int qosa_msgq_release(osa_msgq_t msgQRef, u32_t size, uint8_t* value, u32_t timeout);
 
 /**
- * @brief 等待一个消息的到达,当为OSA_WAIT_FOREVER时,如果消息队列满后
- *			  要等待
+ * @brief Waits for a message to arrive. When set to OSA_WAIT_FOREVER, it will wait if the message queue is full
  *
  * @param[in] osa_task_t task_ref
- *          - 线程指针句柄
+ *          - Thread pointer handle
  *
  * @param[out] uint8_t * recvMsg
- *          - 准备接收数据的首地址
+ *          - Starting address for receiving data
  *
  * @param[in] u32_t size
- *          - 要获取存放到消息队列中的数据类型长度,要与创建时的size参数保持一致
+ *          - Length of the data type to be stored in the message queue, must be consistent with the size parameter during creation
  *
  * @param[in] u32_t timeout
  *          - OSA_WAIT_FOREVER, OSA_NO_WAIT, or timeout
  *
  * @return int
- *       - 0 返回执行成功
- *       - 其他 表示执行失败
+ *       - 0 indicates successful execution
+ *       - Other values indicate execution failure
  */
 int qosa_msgq_wait(osa_msgq_t msgQRef, uint8_t* value, u32_t size, u32_t timeout);
 
 /**
- * @brief 获取消息队列中当前所储存的消息个数
+ * @brief Gets the current number of messages stored in the message queue
  *
  * @param[in] osa_msgq_t msgQRef
- *          - 消息队列指针句柄
+ *          - Message queue pointer handle
  *
  * @param[in] u32_t * cnt_ptr
- *          - 返回当前队列中的项目个数
+ *          - Returns the current number of items in the queue
  *
  * @return int
- *       - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *       - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_msgq_get_cnt(osa_msgq_t msgQRef, u32_t* cnt_ptr);
 
 /**
- * @brief 创建系统定时器
+ * @brief Creates a system timer
  *
  * @param[in] osa_timer_t * timerRef
- *          - 系统定时器指针句柄
+ *          - System timer pointer handle
  *
  * @param[in] void * callBackRoutine
- *          - 用于定时器到达时间后,主动通知用户的函数
+ *          - Function to actively notify the user when the timer expires
  *
  * @param[in] void * argv
- *          - 用户自定义callBackRoutine函数的入参
+ *          - User-defined parameter for the callBackRoutine function
  *
  * @return int
- *        - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *        - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_timer_create(osa_timer_t* timerRef, void (*callBackRoutine)(void*), void* argv);
 
 /**
- * @brief 控制系统定时器启动
+ * @brief Controls the system timer to start
  *
  * @param[in] osa_timer_t timerRef
- *          - 系统定时器指针句柄
+ *          - System timer pointer handle
  *
  * @param[in] u32_t set_Time
- *          - 设置定时器等待的时间间隔,单位ms
+ *          - Sets the timer wait interval, unit: ms
  *
  * @param[in] qosa_bool_t cyclicalEn
- *          - 为OSA_TRUE时表示为循环定时器, OSA_FALSE表示单次定时器
+ *          - OSA_TRUE indicates a cyclic timer, OSA_FALSE indicates a one-shot timer
  *
  * @return int
- *       - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *       - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_timer_start(osa_timer_t timerRef, u32_t set_Time, qosa_bool_t cyclicalEn);
 
 /**
- * @brief 控制系统定时器停止运行
+ * @brief Controls the system timer to stop running
  *
  * @param[in] osa_timer_t timerRef
- *          - 系统定时器指针句柄
+ *          - System timer pointer handle
  *
  * @return int
- *       - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *       - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_timer_stop(osa_timer_t timerRef);
 
 /**
- * @brief 判断系统定时器是否正在工作
+ * @brief Checks if the system timer is running
  *
  * @param[in] osa_timer_t timerRef
- *          - 系统定时器指针句柄
+ *          - System timer pointer handle
  *
  * @return qosa_bool_t
- *        - OSA_TRUE表示正在工作, OSA_FALSE表示未在工作
+ *        - OSA_TRUE indicates it is running, OSA_FALSE indicates it is not running
  */
 qosa_bool_t qosa_timer_is_running(osa_timer_t timerRef);
 
 /**
- * @brief 用于删除定时器,并释放定时器占用系统资源
+ * @brief Used to delete the timer and release system resources occupied by the timer
  *
  * @param[in] osa_timer_t timerRef
- *          - 系统定时器指针句柄
+ *          - System timer pointer handle
  *
  * @return int
- *       - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *       - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  *
  * @note
- *     - 使用前,请先使用 osa_osa_timerStop 停止定时器运行
+ *     - Before use, please use osa_osa_timerStop to stop the timer first
  *
  * @see  osa_timer_stop , osa_timer_create
  */
 int qosa_timer_delete(osa_timer_t timerRef);
 
 /**
- * @brief 线程创建并初始化函数
+ * @brief Thread creation and initialization function
  *
  * @param[in] osa_task_t * taskRef
- *          - 线程指针句柄
+ *          - Thread pointer handle
  *
  * @param[in] u32_t stackSize
- *          - 创建线程的栈空间大小
+ *          - Stack size of the created thread
  *
  * @param[in] uint8_t priority
- *          - 创建线程的优先级
+ *          - Priority of the created thread
  *
  * @param[in] char * taskName
- *          - 创建线程的名称
+ *          - Name of the created thread
  *
  * @param[in] void * taskStart
- *          - 线程创建成功后,新线程的入口函数
+ *          - Entry function of the new thread after successful creation
  *
  * @param[in] void * argv
- *          - 要传递给新线程入口函数的自定义参数
+ *          - Custom parameters to be passed to the new thread's entry function
  *
  * @return int
- *       - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *       - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_task_create(osa_task_t* taskRef, u32_t stackSize, uint8_t priority, char* taskName, void (*taskStart)(void*), void* argv, ...);
 
 /**
- * @brief 线程停止并销毁函数
+ * @brief Thread stop and destroy function
  *
  * @param[in] osa_task_t taskRef
- *          - 线程指针句柄
+ *          - Thread pointer handle
  *
  * @return int
- *        - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *        - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_task_delete(osa_task_t taskRef);
 
 /**
- * @brief 获取当前线程运行状态
+ * @brief Gets the current thread running status
  *
  * @param[in] osa_task_t task_ref
- *          - 线程指针句柄
+ *          - Thread pointer handle
  *
  * @param[out] int32_t * status
- *           - 返回1 表示正在运行, 返回0 表示停止运行
+ *           - Returns 1 if running, 0 if stopped
  *
  * @return int
- *       - 函数执行成功返回OSA_OK, 否则返回一个负数
+ *       - Returns OSA_OK if the function executes successfully, otherwise returns a negative number
  */
 int qosa_task_get_status(osa_task_t task_ref, int32_t* status);
 
 /**
- * @brief 线程毫秒定时器
+ * @brief Thread millisecond timer
  *
  * @param[in] u32_t ms
- *          - 所要休眠的毫秒时间
+ *          - Millisecond time to sleep
  *
  */
 void qosa_task_sleep_ms(u32_t ms);
 
 /**
- * @brief 线程秒级定时器
+ * @brief Thread second-level timer
  *
  * @param[in] u32_t s
- *          - 所要休眠的时间,单位秒
+ *          - Time to sleep, unit: seconds
  *
  */
 void qosa_task_sleep_sec(u32_t s);
 
 /**
- * @brief 获取当前运行的task指针句柄
+ * @brief Gets the current running task pointer handle
  *
  * @param[out] osa_task_t * taskRef
- *           - 返回的当前线程指针句柄
+ *           - Returns the current thread pointer handle
  *
  * @return int
- *       - 0 返回执行成功
- *       - 其他 表示执行失败
+ *       - 0 indicates successful execution
+ *       - Other values indicate execution failure
  */
 osa_task_t qosa_task_get_current_ref(void);
 

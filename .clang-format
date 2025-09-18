@@ -1,238 +1,237 @@
 ---
 Language:        Cpp
 # BasedOnStyle:  Quectel_sw10
-AccessModifierOffset: -4  # 访问修饰符偏移量设置为 -4
-AlignAfterOpenBracket: BlockIndent  # 在打开括号后对齐：块缩进
-AlignArrayOfStructures: None  # 不对齐结构数组
+AccessModifierOffset: -4  # Access modifier offset set to -4
+AlignAfterOpenBracket: BlockIndent  # Align after opening bracket: block indent
+AlignArrayOfStructures: None  # Do not align arrays of structures
 AlignConsecutiveMacros:
-  Enabled: true  # 启用对齐连续的宏
-  AcrossEmptyLines: true  # 跨空行对齐
-  AcrossComments: true  # 跨注释对齐
-  AlignCompound: true  # 对齐复合语句
-  PadOperators: true  # 填充操作符
+  Enabled: true  # Enable consecutive macro alignment
+  AcrossEmptyLines: true  # Align across empty lines
+  AcrossComments: true  # Align across comments
+  AlignCompound: true  # Align compound statements
+  PadOperators: true  # Pad operators
 AlignConsecutiveBitFields:
-  Enabled: true  # 启用对齐连续的位域
-  AcrossEmptyLines: true  # 跨空行对齐
-  AcrossComments: true  # 跨注释对齐
-  AlignCompound: true  # 对齐复合语句
-  PadOperators: true  # 填充操作符
+  Enabled: true  # Enable consecutive bit field alignment
+  AcrossEmptyLines: true  # Align across empty lines
+  AcrossComments: true  # Align across comments
+  AlignCompound: true  # Align compound statements
+  PadOperators: true  # Pad operators
 AlignConsecutiveDeclarations:
-  Enabled: true  # 启用对齐连续的声明
-  AcrossEmptyLines: false  # 不跨空行对齐
-  AcrossComments: false  # 不跨注释对齐
-AlignEscapedNewlines: Right  # 转义换行符对齐到右边
-AlignOperands: true  # 对齐操作数
-AlignTrailingComments: true  # 对齐尾随注释
-AllowAllArgumentsOnNextLine: false  # 不允许所有参数在下一行
-AllowAllParametersOfDeclarationOnNextLine: false  # 不允许所有声明参数在下一行
-AllowShortEnumsOnASingleLine: false  # 不允许短枚举在单行
-AllowShortBlocksOnASingleLine: Empty  # 仅允许空的短块在单行
-AllowShortCaseLabelsOnASingleLine: false  # 不允许短的 case 标签在单行
-AllowShortFunctionsOnASingleLine: InlineOnly  # 仅允许内联的短函数在单行
-AllowShortLambdasOnASingleLine: None  # 不允许短 lambda 在单行
-AllowShortIfStatementsOnASingleLine: Never  # 从不允许短 if 语句在单行
-AllowShortLoopsOnASingleLine: true  # 允许短循环在单行
-AlwaysBreakAfterDefinitionReturnType: None  # 不在定义返回类型后断行
-AlwaysBreakAfterReturnType: None  # 不在返回类型后断行
-AlwaysBreakBeforeMultilineStrings: true  # 在多行字符串之前断行
-AlwaysBreakTemplateDeclarations: Yes  # 总是断行模板声明
+  Enabled: true  # Enable consecutive declaration alignment
+  AcrossEmptyLines: false  # Do not align across empty lines
+  AcrossComments: false  # Do not align across comments
+AlignEscapedNewlines: Right  # Align escaped newlines to the right
+AlignOperands: true  # Align operands
+AlignTrailingComments: true  # Align trailing comments
+AllowAllArgumentsOnNextLine: false  # Do not allow all arguments on next line
+AllowAllParametersOfDeclarationOnNextLine: false  # Do not allow all declaration parameters on next line
+AllowShortEnumsOnASingleLine: false  # Do not allow short enums on a single line
+AllowShortBlocksOnASingleLine: Empty  # Only allow empty short blocks on a single line
+AllowShortCaseLabelsOnASingleLine: false  # Do not allow short case labels on a single line
+AllowShortFunctionsOnASingleLine: InlineOnly  # Only allow inline short functions on a single line
+AllowShortLambdasOnASingleLine: None  # Do not allow short lambdas on a single line
+AllowShortIfStatementsOnASingleLine: Never  # Never allow short if statements on a single line
+AllowShortLoopsOnASingleLine: true  # Allow short loops on a single line
+AlwaysBreakAfterDefinitionReturnType: None  # Do not break after definition return type
+AlwaysBreakAfterReturnType: None  # Do not break after return type
+AlwaysBreakBeforeMultilineStrings: true  # Break before multiline strings
+AlwaysBreakTemplateDeclarations: Yes  # Always break template declarations
 AttributeMacros:
-  - __capability  # 属性宏定义
-BinPackArguments: false  # 不对函数参数进行二进制打包
-BinPackParameters: false  # 不对函数参数进行二进制打包
+  - __capability  # Attribute macro definition
+BinPackArguments: false  # Do not bin pack function arguments
+BinPackParameters: false  # Do not bin pack function parameters
 BraceWrapping:
-  AfterCaseLabel:  false  # 在 case 标签后不换行
-  AfterClass:      true  # 在类声明后换行
-  AfterControlStatement: Always  # 在控制语句后总是换行
-  AfterEnum:       true  # 在枚举声明后换行
-  AfterFunction:   true  # 在函数声明后换行
-  AfterNamespace:  true  # 在命名空间声明后换行
-  AfterObjCDeclaration: true  # 在 Objective-C 声明后换行
-  AfterStruct:     true  # 在结构体声明后换行
-  AfterUnion:      true  # 在联合体声明后换行
-  AfterExternBlock: true  # 在 extern "C" 块后换行
-  BeforeCatch:     true  # 在 catch 之前换行
-  BeforeElse:      true  # 在 else 之前换行
-  BeforeLambdaBody: true  # 在 lambda 体之前换行
-  BeforeWhile:     false  # 在 while 之前不换行
-  IndentBraces:    false  # 不缩进大括号
-  SplitEmptyFunction: true  # 拆分空函数
-  SplitEmptyRecord: true  # 拆分空记录（类、结构体等）
-  SplitEmptyNamespace: true  # 拆分空命名空间
-BreakBeforeBinaryOperators: true  # 在二元运算符之前换行
-BreakBeforeConceptDeclarations: true  # 在概念声明之前换行
-BreakBeforeBraces: Custom  # 自定义大括号之前的换行方式
-BreakBeforeInheritanceComma: false  # 在继承列表的逗号之前不换行
-BreakInheritanceList: BeforeColon  # 在继承列表的冒号之前换行
-BreakBeforeTernaryOperators: true  # 在三元运算符之前换行
-BreakConstructorInitializersBeforeComma: false  # 在构造函数初始化列表的逗号之前不换行
-BreakConstructorInitializers: BeforeColon  # 在构造函数初始化列表的冒号之前换行
-BreakAfterJavaFieldAnnotations: false  # 在 Java 字段注解之后不换行
-BreakArrays: true  # 数组换行
-BreakStringLiterals: true  # 字符串字面量换行
-ColumnLimit:     160  # 列宽限制为 160
-CommentPragmas:  '^ NOLINT:'  # 注释标记，匹配正则表达式 '^ NOLINT:'
-QualifierAlignment: Leave  # 保持限定词的对齐方式
-CompactNamespaces: false  # 不使用紧凑的命名空间格式
-ConstructorInitializerIndentWidth: 4  # 构造函数初始化列表的缩进宽度为 4
-ContinuationIndentWidth: 4  # 续行缩进宽度为 4
-Cpp11BracedListStyle: true  # 使用 C++11 大括号列表样式
-DeriveLineEnding: true  # 自动推导行尾字符
-DerivePointerAlignment: true  # 自动推导指针对齐方式
-DisableFormat:   false  # 不禁用格式化
-EmptyLineAfterAccessModifier: Never  # 访问修饰符后从不添加空行
-EmptyLineBeforeAccessModifier: LogicalBlock  # 访问修饰符前添加空行（逻辑块）
-ExperimentalAutoDetectBinPacking: false  # 不启用实验性自动检测二进制打包
-PackConstructorInitializers: Never  # 构造函数初始化列表从不打包
-BasedOnStyle:    ''  # 基于风格（空）
-ConstructorInitializerAllOnOneLineOrOnePerLine: false  # 构造函数初始化列表不全在一行或每行一个
-FixNamespaceComments: true  # 修复命名空间注释
+  AfterCaseLabel:  false  # Do not wrap after case label
+  AfterClass:      true  # Wrap after class declaration
+  AfterControlStatement: Always  # Always wrap after control statements
+  AfterEnum:       true  # Wrap after enum declaration
+  AfterFunction:   true  # Wrap after function declaration
+  AfterNamespace:  true  # Wrap after namespace declaration
+  AfterObjCDeclaration: true  # Wrap after Objective-C declaration
+  AfterStruct:     true  # Wrap after struct declaration
+  AfterUnion:      true  # Wrap after union declaration
+  AfterExternBlock: true  # Wrap after extern "C" block
+  BeforeCatch:     true  # Wrap before catch
+  BeforeElse:      true  # Wrap before else
+  BeforeLambdaBody: true  # Wrap before lambda body
+  BeforeWhile:     false  # Do not wrap before while
+  IndentBraces:    false  # Do not indent braces
+  SplitEmptyFunction: true  # Split empty functions
+  SplitEmptyRecord: true  # Split empty records (classes, structs, etc.)
+  SplitEmptyNamespace: true  # Split empty namespaces
+BreakBeforeBinaryOperators: true  # Break before binary operators
+BreakBeforeConceptDeclarations: true  # Break before concept declarations
+BreakBeforeBraces: Custom  # Custom brace wrapping style
+BreakBeforeInheritanceComma: false  # Do not break before inheritance comma
+BreakInheritanceList: BeforeColon  # Break inheritance list before colon
+BreakBeforeTernaryOperators: true  # Break before ternary operators
+BreakConstructorInitializersBeforeComma: false  # Do not break constructor initializers before comma
+BreakConstructorInitializers: BeforeColon  # Break constructor initializers before colon
+BreakAfterJavaFieldAnnotations: false  # Do not break after Java field annotations
+BreakArrays: true  # Break arrays
+BreakStringLiterals: true  # Break string literals
+ColumnLimit:     160  # Column limit set to 160
+CommentPragmas:  '^ NOLINT:'  # Comment pragmas matching regex '^ NOLINT:'
+QualifierAlignment: Leave  # Keep qualifier alignment as is
+CompactNamespaces: false  # Do not use compact namespace format
+ConstructorInitializerIndentWidth: 4  # Constructor initializer indent width set to 4
+ContinuationIndentWidth: 4  # Continuation indent width set to 4
+Cpp11BracedListStyle: true  # Use C++11 braced list style
+DeriveLineEnding: true  # Automatically derive line ending
+DerivePointerAlignment: true  # Automatically derive pointer alignment
+DisableFormat:   false  # Do not disable formatting
+EmptyLineAfterAccessModifier: Never  # Never add empty line after access modifier
+EmptyLineBeforeAccessModifier: LogicalBlock  # Add empty line before access modifier (logical block)
+ExperimentalAutoDetectBinPacking: false  # Do not enable experimental auto bin packing detection
+PackConstructorInitializers: Never  # Never pack constructor initializers
+BasedOnStyle:    ''  # Based on style (empty)
+ConstructorInitializerAllOnOneLineOrOnePerLine: false  # Constructor initializers not all on one line or one per line
+FixNamespaceComments: true  # Fix namespace comments
 ForEachMacros:
-  - foreach  # for-each 宏
-  - Q_FOREACH  # Qt for-each 宏
-  - BOOST_FOREACH  # Boost for-each 宏
+  - foreach  # for-each macro
+  - Q_FOREACH  # Qt for-each macro
+  - BOOST_FOREACH  # Boost for-each macro
 IfMacros:
-  - KJ_IF_MAYBE  # KJ_IF_MAYBE 宏
-IncludeBlocks:   Regroup  # 重新分组 include 块
+  - KJ_IF_MAYBE  # KJ_IF_MAYBE macro
+IncludeBlocks:   Regroup  # Regroup include blocks
 IncludeCategories:
-  - Regex:           '^<ext/.*\.h>'  # 匹配正则表达式 '^<ext/.*\.h>'
-    Priority:        2  # 优先级为 2
-    SortPriority:    0  # 排序优先级为 0
-    CaseSensitive:   false  # 不区分大小写
-  - Regex:           '^<.*\.h>'  # 匹配正则表达式 '^<.*\.h>'
-    Priority:        1  # 优先级为 1
-    SortPriority:    0  # 排序优先级为 0
-    CaseSensitive:   false  # 不区分大小写
-  - Regex:           '^<.*'  # 匹配正则表达式 '^<.*'
-    Priority:        2  # 优先级为 2
-    SortPriority:    0  # 排序优先级为 0
-    CaseSensitive:   false  # 不区分大小写
-  - Regex:           '.*'  # 匹配正则表达式 '.*'
-    Priority:        3  # 优先级为 3
-    SortPriority:    0  # 排序优先级为 0
-    CaseSensitive:   false  # 不区分大小写
-IncludeIsMainRegex: '([-_](test|unittest))?$'  # 包含主正则表达式
-IncludeIsMainSourceRegex: ''  # 包含主源文件正则表达式（空）
-IndentAccessModifiers: false  # 不缩进访问修饰符
-IndentCaseLabels: true  # 缩进 case 标签
-IndentCaseBlocks: false  # 不缩进 case 块
-IndentGotoLabels: true  # 缩进 goto 标签
-IndentPPDirectives: None  # 预处理指令不缩进
-IndentExternBlock: AfterExternBlock  # extern 块后缩进
-IndentRequires:  false  # 不缩进 requires 子句
-IndentWidth:     4  # 缩进宽度为 4
-IndentWrappedFunctionNames: false  # 不缩进换行的函数名
-InsertTrailingCommas: None  # 不插入尾随逗号
-JavaScriptQuotes: Leave  # 保持 JavaScript 引号不变
-JavaScriptWrapImports: true  # JavaScript 导入语句换行
-KeepEmptyLinesAtTheStartOfBlocks: false  # 不保留块开始的空行
-LambdaBodyIndentation: Signature  # lambda 体缩进按签名
-MacroBlockBegin: ''  # 宏块开始标记（空）
-MacroBlockEnd:   ''  # 宏块结束标记（空）
-MaxEmptyLinesToKeep: 1  # 保留的最大空行数为 1
-NamespaceIndentation: None  # 命名空间不缩进
-ObjCBinPackProtocolList: Never  # Objective-C 协议列表从不打包
-ObjCBlockIndentWidth: 2  # Objective-C 块缩进宽度为 2
-ObjCBreakBeforeNestedBlockParam: true  # 在嵌套块参数之前换行
-ObjCSpaceAfterProperty: false  # 在属性之后不加空格
-ObjCSpaceBeforeProtocolList: true  # 在协议列表之前加空格
-PenaltyBreakAssignment: 2  # 断行赋值的惩罚因子为 2
-PenaltyBreakBeforeFirstCallParameter: 1  # 第一个调用参数前断行的惩罚因子为 1
-PenaltyBreakComment: 300  # 断行注释的惩罚因子为 300
-PenaltyBreakFirstLessLess: 120  # 第一个 << 操作符断行的惩罚因子为 120
-PenaltyBreakOpenParenthesis: 0  # 在打开括号前断行的惩罚因子为 0
-PenaltyBreakString: 1000  # 断行字符串的惩罚因子为 1000
-PenaltyBreakTemplateDeclaration: 10  # 断行模板声明的惩罚因子为 10
-PenaltyExcessCharacter: 1000000  # 超过字符限制的惩罚因子为 1000000
-PenaltyReturnTypeOnItsOwnLine: 200  # 返回类型单独一行的惩罚因子为 200
-PenaltyIndentedWhitespace: 0  # 缩进空白的惩罚因子为 0
-PointerAlignment: Right  # 指针对齐到右边
-PPIndentWidth:   -1  # 预处理指令缩进宽度为 -1（无缩进）
+  - Regex:           '^<ext/.*\.h>'  # Match regex '^<ext/.*\.h>'
+    Priority:        2  # Priority set to 2
+    SortPriority:    0  # Sort priority set to 0
+    CaseSensitive:   false  # Case insensitive
+  - Regex:           '^<.*\.h>'  # Match regex '^<.*\.h>'
+    Priority:        1  # Priority set to 1
+    SortPriority:    0  # Sort priority set to 0
+    CaseSensitive:   false  # Case insensitive
+  - Regex:           '^<.*'  # Match regex '^<.*'
+    Priority:        2  # Priority set to 2
+    SortPriority:    0  # Sort priority set to 0
+    CaseSensitive:   false  # Case insensitive
+  - Regex:           '.*'  # Match regex '.*'
+    Priority:        3  # Priority set to 3
+    SortPriority:    0  # Sort priority set to 0
+    CaseSensitive:   false  # Case insensitive
+IncludeIsMainRegex: '([-_](test|unittest))?$'  # Include main regex
+IncludeIsMainSourceRegex: ''  # Include main source regex (empty)
+IndentAccessModifiers: false  # Do not indent access modifiers
+IndentCaseLabels: true  # Indent case labels
+IndentCaseBlocks: false  # Do not indent case blocks
+IndentGotoLabels: true  # Indent goto labels
+IndentPPDirectives: None  # Do not indent preprocessor directives
+IndentExternBlock: AfterExternBlock  # Indent after extern block
+IndentRequires:  false  # Do not indent requires clauses
+IndentWidth:     4  # Indent width set to 4
+IndentWrappedFunctionNames: false  # Do not indent wrapped function names
+InsertTrailingCommas: None  # Do not insert trailing commas
+JavaScriptQuotes: Leave  # Keep JavaScript quotes as is
+JavaScriptWrapImports: true  # Wrap JavaScript import statements
+KeepEmptyLinesAtTheStartOfBlocks: false  # Do not keep empty lines at start of blocks
+LambdaBodyIndentation: Signature  # Lambda body indentation by signature
+MacroBlockBegin: ''  # Macro block begin marker (empty)
+MacroBlockEnd:   ''  # Macro block end marker (empty)
+MaxEmptyLinesToKeep: 1  # Maximum empty lines to keep set to 1
+NamespaceIndentation: None  # Do not indent namespaces
+ObjCBinPackProtocolList: Never  # Never bin pack Objective-C protocol lists
+ObjCBlockIndentWidth: 2  # Objective-C block indent width set to 2
+ObjCBreakBeforeNestedBlockParam: true  # Break before nested block parameters
+ObjCSpaceAfterProperty: false  # No space after property
+ObjCSpaceBeforeProtocolList: true  # Space before protocol list
+PenaltyBreakAssignment: 2  # Penalty for breaking assignment set to 2
+PenaltyBreakBeforeFirstCallParameter: 1  # Penalty for breaking before first call parameter set to 1
+PenaltyBreakComment: 300  # Penalty for breaking comment set to 300
+PenaltyBreakFirstLessLess: 120  # Penalty for breaking before first << operator set to 120
+PenaltyBreakOpenParenthesis: 0  # Penalty for breaking before open parenthesis set to 0
+PenaltyBreakString: 1000  # Penalty for breaking string set to 1000
+PenaltyBreakTemplateDeclaration: 10  # Penalty for breaking template declaration set to 10
+PenaltyExcessCharacter: 1000000  # Penalty for excess characters set to 1000000
+PenaltyReturnTypeOnItsOwnLine: 200  # Penalty for return type on its own line set to 200
+PenaltyIndentedWhitespace: 0  # Penalty for indented whitespace set to 0
+PointerAlignment: Right  # Pointer alignment to the right
+PPIndentWidth:   -1  # Preprocessor directive indent width set to -1 (no indent)
 RawStringFormats:
-  - Language:        Cpp  # 语言为 C++
+  - Language:        Cpp  # Language is C++
     Delimiters:
-      - cc  # 定界符为 cc
-      - CC  # 定界符为 CC
-      - cpp  # 定界符为 cpp
-      - Cpp  # 定界符为 Cpp
-      - CPP  # 定界符为 CPP
-      - 'c++'  # 定界符为 'c++'
-      - 'C++'  # 定界符为 'C++'
-    CanonicalDelimiter: ''  # 规范定界符（空）
-    BasedOnStyle:    Quectel_sw10  # 基于 Quectel_sw10 风格
-  - Language:        TextProto  # 语言为 TextProto
+      - cc  # Delimiter is cc
+      - CC  # Delimiter is CC
+      - cpp  # Delimiter is cpp
+      - Cpp  # Delimiter is Cpp
+      - CPP  # Delimiter is CPP
+      - 'c++'  # Delimiter is 'c++'
+      - 'C++'  # Delimiter is 'C++'
+    CanonicalDelimiter: ''  # Canonical delimiter (empty)
+    BasedOnStyle:    Quectel_sw10  # Based on Quectel_sw10 style
+  - Language:        TextProto  # Language is TextProto
     Delimiters:
-      - pb  # 定界符为 pb
-      - PB  # 定界符为 PB
-      - proto  # 定界符为 proto
-      - PROTO  # 定界符为 PROTO
+      - pb  # Delimiter is pb
+      - PB  # Delimiter is PB
+      - proto  # Delimiter is proto
+      - PROTO  # Delimiter is PROTO
     EnclosingFunctions:
-      - EqualsProto  # 包含函数 EqualsProto
-      - EquivToProto  # 包含函数 EquivToProto
-      - PARSE_PARTIAL_TEXT_PROTO  # 包含函数 PARSE_PARTIAL_TEXT_PROTO
-      - PARSE_TEST_PROTO  # 包含函数 PARSE_TEST_PROTO
-      - PARSE_TEXT_PROTO  # 包含函数 PARSE_TEXT_PROTO
-      - ParseTextOrDie  # 包含函数 ParseTextOrDie
-      - ParseTextProtoOrDie  # 包含函数 ParseTextProtoOrDie
-      - ParseTestProto  # 包含函数 ParseTestProto
-      - ParsePartialTestProto  # 包含函数 ParsePartialTestProto
-    CanonicalDelimiter: pb  # 规范定界符为 pb
-    BasedOnStyle:    Quectel_sw10  # 基于 Quectel_sw10 风格
-ReferenceAlignment: Right  # 引用对齐到右边
-ReflowComments:  false  # 不重新格式化注释
-RemoveBracesLLVM: false  # 不移除 LLVM 风格的大括号
-SeparateDefinitionBlocks: Leave  # 保持定义块分离
-ShortNamespaceLines: 1  # 短命名空间行数限制为 1
-SortIncludes:    false  # 不对 include 进行排序
-SortJavaStaticImport: Before  # 在排序时将 Java 静态导入放在前面
-SortUsingDeclarations: false  # 不对 using 声明进行排序
-SpaceAfterCStyleCast: false  # C 风格类型转换后不加空格
-SpaceAfterLogicalNot: false  # 逻辑非操作符后不加空格
-SpaceAfterTemplateKeyword: true  # 模板关键字后加空格
-SpaceBeforeAssignmentOperators: true  # 赋值操作符前加空格
-SpaceBeforeCaseColon: false  # case 冒号前不加空格
-SpaceBeforeCpp11BracedList: false  # C++11 大括号列表前不加空格
-SpaceBeforeCtorInitializerColon: true  # 构造函数初始化列表冒号前加空格
-SpaceBeforeInheritanceColon: true  # 继承列表冒号前加空格
-SpaceBeforeParens: ControlStatements  # 在控制语句前加空格
+      - EqualsProto  # Enclosing function EqualsProto
+      - EquivToProto  # Enclosing function EquivToProto
+      - PARSE_PARTIAL_TEXT_PROTO  # Enclosing function PARSE_PARTIAL_TEXT_PROTO
+      - PARSE_TEST_PROTO  # Enclosing function PARSE_TEST_PROTO
+      - PARSE_TEXT_PROTO  # Enclosing function PARSE_TEXT_PROTO
+      - ParseTextOrDie  # Enclosing function ParseTextOrDie
+      - ParseTextProtoOrDie  # Enclosing function ParseTextProtoOrDie
+      - ParseTestProto  # Enclosing function ParseTestProto
+      - ParsePartialTestProto  # Enclosing function ParsePartialTestProto
+    CanonicalDelimiter: pb  # Canonical delimiter is pb
+    BasedOnStyle:    Quectel_sw10  # Based on Quectel_sw10 style
+ReferenceAlignment: Right  # Reference alignment to the right
+ReflowComments:  false  # Do not reflow comments
+RemoveBracesLLVM: false  # Do not remove LLVM-style braces
+SeparateDefinitionBlocks: Leave  # Keep definition blocks separate
+ShortNamespaceLines: 1  # Short namespace line limit set to 1
+SortIncludes:    false  # Do not sort includes
+SortJavaStaticImport: Before  # Place Java static imports first when sorting
+SortUsingDeclarations: false  # Do not sort using declarations
+SpaceAfterCStyleCast: false  # No space after C-style cast
+SpaceAfterLogicalNot: false  # No space after logical not operator
+SpaceAfterTemplateKeyword: true  # Space after template keyword
+SpaceBeforeAssignmentOperators: true  # Space before assignment operators
+SpaceBeforeCaseColon: false  # No space before case colon
+SpaceBeforeCpp11BracedList: false  # No space before C++11 braced list
+SpaceBeforeCtorInitializerColon: true  # Space before constructor initializer colon
+SpaceBeforeInheritanceColon: true  # Space before inheritance colon
+SpaceBeforeParens: ControlStatements  # Space before parentheses in control statements
 SpaceBeforeParensOptions:
-  AfterControlStatements: true  # 在控制语句后加空格
-  AfterForeachMacros: true  # 在 for-each 宏后加空格
-  AfterFunctionDefinitionName: false  # 在函数定义名后不加空格
-  AfterFunctionDeclarationName: false  # 在函数声明名后不加空格
-  AfterIfMacros: true  # 在 if 宏后加空格
-  AfterOverloadedOperator: false  # 在重载操作符后不加空格
-  BeforeNonEmptyParentheses: false  # 非空括号前不加空格
-SpaceAroundPointerQualifiers: Default  # 指针限定符周围的空格使用默认值
-SpaceBeforeRangeBasedForLoopColon: true  # 基于范围的 for 循环冒号前加空格
-SpaceInEmptyBlock: false  # 空块中不加空格
-SpaceInEmptyParentheses: false  # 空括号中不加空格
-SpacesBeforeTrailingComments: 2  # 尾随注释前加 2 个空格
-SpacesInAngles: Never  # 尖括号中不加空格
-SpacesInConditionalStatement: false  # 条件语句中不加空格
-SpacesInContainerLiterals: false  # 容器字面量中不加空格
-SpacesInCStyleCastParentheses: false  # C 风格类型转换括号中不加空格
+  AfterControlStatements: true  # Space after control statements
+  AfterForeachMacros: true  # Space after for-each macros
+  AfterFunctionDefinitionName: false  # No space after function definition name
+  AfterFunctionDeclarationName: false  # No space after function declaration name
+  AfterIfMacros: true  # Space after if macros
+  AfterOverloadedOperator: false  # No space after overloaded operator
+  BeforeNonEmptyParentheses: false  # No space before non-empty parentheses
+SpaceAroundPointerQualifiers: Default  # Space around pointer qualifiers uses default
+SpaceBeforeRangeBasedForLoopColon: true  # Space before range-based for loop colon
+SpaceInEmptyBlock: false  # No space in empty block
+SpaceInEmptyParentheses: false  # No space in empty parentheses
+SpacesBeforeTrailingComments: 2  # 2 spaces before trailing comments
+SpacesInAngles: Never  # No spaces in angle brackets
+SpacesInConditionalStatement: false  # No spaces in conditional statements
+SpacesInContainerLiterals: false  # No spaces in container literals
+SpacesInCStyleCastParentheses: false  # No spaces in C-style cast parentheses
 SpacesInLineCommentPrefix:
-  Minimum:         1  # 行注释前的最小空格数为 1
-  Maximum:         -1  # 行注释前的最大空格数不限
-SpacesInParentheses: false  # 括号中不加空格
-SpacesInSquareBrackets: false  # 方括号中不加空格
-SpaceBeforeSquareBrackets: false  # 方括号前不加空格
-BitFieldColonSpacing: Both  # 位域冒号两侧都加空格
-Standard:        Auto  # 自动选择标准
+  Minimum:         1  # Minimum spaces before line comment set to 1
+  Maximum:         -1  # Maximum spaces before line comment unlimited
+SpacesInParentheses: false  # No spaces in parentheses
+SpacesInSquareBrackets: false  # No spaces in square brackets
+SpaceBeforeSquareBrackets: false  # No space before square brackets
+BitFieldColonSpacing: Both  # Space on both sides of bit field colon
+Standard:        Auto  # Automatically select standard
 StatementAttributeLikeMacros:
-  - Q_EMIT  # 声明属性类宏 Q_EMIT
+  - Q_EMIT  # Statement attribute-like macro Q_EMIT
 StatementMacros:
-  - Q_UNUSED  # 声明宏 Q_UNUSED
-  - QT_REQUIRE_VERSION  # 声明宏 QT_REQUIRE_VERSION
-TabWidth:        4  # 制表符宽度为 4
-UseCRLF:         false  # 不使用 CRLF 换行符
-UseTab:          Never  # 从不使用制表符
+  - Q_UNUSED  # Statement macro Q_UNUSED
+  - QT_REQUIRE_VERSION  # Statement macro QT_REQUIRE_VERSION
+TabWidth:        4  # Tab width set to 4
+UseCRLF:         false  # Do not use CRLF line endings
+UseTab:          Never  # Never use tabs
 WhitespaceSensitiveMacros:
-  - STRINGIZE  # 空白敏感宏 STRINGIZE
-  - PP_STRINGIZE  # 空白敏感宏 PP_STRINGIZE
-  - BOOST_PP_STRINGIZE  # 空白敏感宏 BOOST_PP_STRINGIZE
-  - NS_SWIFT_NAME  # 空白敏感宏 NS_SWIFT_NAME
-  - CF_SWIFT_NAME  # 空白敏感宏 CF_SWIFT_NAME
+  - STRINGIZE  # Whitespace-sensitive macro STRINGIZE
+  - PP_STRINGIZE  # Whitespace-sensitive macro PP_STRINGIZE
+  - BOOST_PP_STRINGIZE  # Whitespace-sensitive macro BOOST_PP_STRINGIZE
+  - NS_SWIFT_NAME  # Whitespace-sensitive macro NS_SWIFT_NAME
+  - CF_SWIFT_NAME  # Whitespace-sensitive macro CF_SWIFT_NAME
 ...
-
