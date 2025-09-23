@@ -1,0 +1,14 @@
+.git/
+.vs/
+.vscode/
+out/
+build/*
+system/platform/arm-cortex/STM32F401RET6/Debug
+system/platform/arm-cortex/STM32F413RGT6/Debug
+system/platform/arm-cortex/STM32F413VGT6/Debug
+Debug/*
+Release/*
+tools/scripts/ProjectInfo.json
+tools/scripts/backup/
+tools/windows/toolchain/
+tools/linux/toolchain/
