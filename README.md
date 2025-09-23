@@ -17,7 +17,7 @@
 [![Documentation](https://img.shields.io/badge/Docs-100%25-blue.svg)](./docs)
 
 <p align="right">
-  <b>English</b> | <a href="./docs/README_zh.md">中文</a>
+  <b>English</b> | <a href="./README_zh.md">中文</a>
 </p>
 
 # Quectel User-Friendly SDK
