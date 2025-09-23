@@ -6,7 +6,7 @@
     Build a smarter world
 </p>
 
-[![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://github.com/quectel-develop/user-friendly-project/blob/master/LICENSE)
+[![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](./LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/quectel-develop/user-friendly-project)](https://github.com/quectel-develop/user-friendly-project/releases/latest)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/quectel-develop/user-friendly-project)](https://github.com/quectel-develop/user-friendly-project/commits/master)
 [![GitHub Stars](https://img.shields.io/github/stars/quectel-develop/user-friendly-project?style=flat-square&logo=GitHub)](https://github.com/quectel-develop/user-friendly-project/stargazers)
@@ -14,7 +14,7 @@
 [![GitHub Repo Size](https://img.shields.io/github/languages/code-size/quectel-develop/user-friendly-project)](https://github.com/quectel-develop/user-friendly-project)
 [![Supported OS](https://img.shields.io/badge/OS-FreeRTOS-green.svg)](https://www.freertos.org/)
 [![Platform](https://img.shields.io/badge/Env-Windows%20|%20Linux-blue.svg)](https://www.linux.org/)
-[![Documentation](https://img.shields.io/badge/Docs-100%25-blue.svg)](https://github.com/quectel-develop/user-friendly-project/docs)
+[![Documentation](https://img.shields.io/badge/Docs-100%25-blue.svg)](./docs)
 
 <p align="right">
   <b>English</b> | <a href="./docs/README_zh.md">中文</a>
@@ -56,7 +56,6 @@ Accelerate development cycles. Reduce the time required to launch new products a
   <img src="docs/Figures/Software-Architecture.png" alt="Software-Architecture" style="width: 100%; height: auto;">
 </p>
 
-<br>
 
 ## Directory Structure
 
