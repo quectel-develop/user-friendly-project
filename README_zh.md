@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://www.quectel.com.cn/">
-    <img src="docs/Figures/Quectel-Logo.png" alt="logo" height=48>
+    <img src="docs/Figures/Quectel-Logo.png" alt="logo" height=56>
   </a>
 <p align="center">
     Build a smarter world
@@ -26,17 +26,21 @@
 Quectel User-Friendly Project，是移远通信专门为开发者设计的一套软件框架，在该框架下可直接调用API
 来实现各种功能，开发者只需专注于自己的业务逻辑，而无需处理MCU和模组之间复杂的AT数据交互，解决了传统AT命令开发方式的诸多痛点，从而使移远模组的开发更加简单、友好。
 
-**`通过导入这个项目，你可以拥有：`**
+### **`通过导入这个项目，你将获得：`**
 
-#### 更简单的开发方式
-通过调用API函数的方式实现各种功能，摒弃了复杂的传统AT命令
+- #### 更简单的开发方式
+  通过调用API函数的方式实现各种功能，摒弃了复杂的传统AT命令
 
-#### 更短的学习曲线
-不必学习和掌握AT命令，甚至可以扔掉AT手册， 减少开发投入
+- #### 更短的学习曲线
+  不必学习和掌握AT命令，甚至可以扔掉AT手册， 减少开发投入
 
-#### 更快的量产速度
-可加速开发周期，缩短新项目落地所需的时间，以赢取更多的市场机会
+- #### 更快的量产速度
+  可加速开发周期，缩短新项目落地所需的时间，以赢取更多的市场机会
 
+<br>
+<p align="left">
+  <img src="docs/Figures/MCU-Module-Connection.png" alt="Software-Architecture" style="width: 60%; height: auto;">
+</p>
 <br>
 
 ## 主要特性

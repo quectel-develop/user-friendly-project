@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://www.quectel.com/">
-    <img src="docs/Figures/Quectel-Logo.png" alt="logo" height=48>
+    <img src="docs/Figures/Quectel-Logo.png" alt="logo" height=56>
   </a>
 <p align="center">
     Build a smarter world
@@ -25,17 +25,21 @@
 ## Overview
 Quectel User-Friendly Project, is a software framework specifically designed for developers. Within this framework, developers can directly call APIs to implement various functionalities without dealing with complex AT data interactions between MCU and modules. This approach has addressed the pain points of traditional AT command development methods, and it can make Quectel module development simpler and more user-friendly.
 
-**`By importing this project, you gain:`**
+### **`Benefits of Importing the Project`**
 
-#### Simplified Development Approach
-Implement functionalities through API function calls, eliminating complex traditional AT commands
+- #### Simplified Development Approach
+  Implement functionalities through API function calls, eliminating complex traditional AT commands
 
-#### Shorter Learning Curve
-No need to learn and master AT commands, or even refer to AT manuals, reducing development investment
+- #### Shorter Learning Curve
+  No need to learn and master AT commands, or even refer to AT manuals, reducing development investment
 
-#### Faster Time-to-Market
-Accelerate development cycles. Reduce the time required to launch new products and solutions, and seize more market opportunities
+- #### Faster Time-to-Market
+  Accelerate development cycles. Reduce the time required to launch new products and solutions, and seize more market opportunities
 
+<br>
+<p align="left">
+  <img src="docs/Figures/MCU-Module-Connection.png" alt="Software-Architecture" style="width: 60%; height: auto;">
+</p>
 <br>
 
 ## Key Features
