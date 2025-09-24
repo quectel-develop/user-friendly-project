@@ -1,10 +1,11 @@
-<p align="center">
+<div align="center">
   <a href="https://www.quectel.com/">
-    <img src="docs/Figures/Quectel-Logo.png" alt="logo" height=56>
+    <img src="docs/Figures/Quectel-Logo.png" alt="logo" height=64>
   </a>
-<p align="center">
-    Build a smarter world
-</p>
+</div>
+<div align="center">
+  <p>Build a smarter world</p>
+</div>
 
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](./LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/quectel-develop/user-friendly-project)](https://github.com/quectel-develop/user-friendly-project/releases/latest)
@@ -16,9 +17,9 @@
 [![Platform](https://img.shields.io/badge/Env-Windows%20|%20Linux-blue.svg)](https://www.linux.org/)
 [![Documentation](https://img.shields.io/badge/Docs-100%25-blue.svg)](./docs)
 
-<p align="right">
+<div align="right">
   <b>English</b> | <a href="./README_zh.md">中文</a>
-</p>
+</div>
 
 # Quectel User-Friendly SDK
 
@@ -37,9 +38,9 @@ Quectel User-Friendly Project, is a software framework specifically designed for
   Accelerate development cycles. Reduce the time required to launch new products and solutions, and seize more market opportunities
 
 <br>
-<p align="left">
-  <img src="docs/Figures/MCU-Module-Connection.png" alt="Software-Architecture" style="width: 60%; height: auto;">
-</p>
+<div align="left">
+  <img src="docs/Figures/MCU-Module-Connection.png" alt="MCU-Module-Connection" height=180>
+</div>
 <br>
 
 ## Key Features
@@ -56,9 +57,9 @@ Quectel User-Friendly Project, is a software framework specifically designed for
 <br>
 
 ## Software Architecture
-<p align="center">
-  <img src="docs/Figures/Software-Architecture.png" alt="Software-Architecture" style="width: 100%; height: auto;">
-</p>
+<div align="center">
+  <img src="docs/Figures/Software-Architecture.png" alt="Software-Architecture">
+</div>
 
 
 ## Directory Structure
@@ -83,9 +84,9 @@ Quectel User-Friendly Project, is a software framework specifically designed for
 ### Hardware Environment
 The most convenient method is using the QSTM32-L064M-SL-EVB development board for validation, which features onboard STM32 MCU, Quectel module, ST-Link debugger, and USB-to-UART tool. For detailed description, refer to [STM32_LQFP64_EVK_V2.0_User_Guide](./docs/Quick_Start/STM32%20LQFP64%20EVK%20V2.0%20User%20Guide%20V1.0-0605.pdf)
 
-<p align="center">
-  <img src="docs/Figures/QSTM32-EVK-Gen2.png" alt="QSTM32-EVK" style="width: 100%; height: auto;">
-</p>
+<div align="center">
+  <img src="docs/Figures/QSTM32-EVK-Gen2.png" alt="QSTM32-EVK">
+</div>
 
 ### Host System
 This SDK supports both Windows and Linux development environments with comprehensive automated scripts.

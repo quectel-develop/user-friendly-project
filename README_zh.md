@@ -1,10 +1,11 @@
-<p align="center">
-  <a href="https://www.quectel.com.cn/">
-    <img src="docs/Figures/Quectel-Logo.png" alt="logo" height=56>
+<div align="center">
+  <a href="https://www.quectel.com/">
+    <img src="docs/Figures/Quectel-Logo.png" alt="logo" height=64>
   </a>
-<p align="center">
-    Build a smarter world
-</p>
+</div>
+<div align="center">
+  <p>Build a smarter world</p>
+</div>
 
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](./LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/quectel-develop/user-friendly-project)](https://github.com/quectel-develop/user-friendly-project/releases/latest)
@@ -16,9 +17,9 @@
 [![Platform](https://img.shields.io/badge/Env-Windows%20|%20Linux-blue.svg)](https://www.linux.org/)
 [![Documentation](https://img.shields.io/badge/Docs-100%25-blue.svg)](./docs)
 
-<p align="right">
+<div align="right">
   <a href="./README.md">English</a> | <b>中文</b>
-</p>
+</div>
 
 # Quectel User-Friendly SDK
 
@@ -38,9 +39,9 @@ Quectel User-Friendly Project，是移远通信专门为开发者设计的一套
   可加速开发周期，缩短新项目落地所需的时间，以赢取更多的市场机会
 
 <br>
-<p align="left">
-  <img src="docs/Figures/MCU-Module-Connection.png" alt="Software-Architecture" style="width: 60%; height: auto;">
-</p>
+<div align="left">
+  <img src="docs/Figures/MCU-Module-Connection.png" alt="MCU-Module-Connection" height=180>
+</div>
 <br>
 
 ## 主要特性
@@ -57,9 +58,9 @@ Quectel User-Friendly Project，是移远通信专门为开发者设计的一套
 <br>
 
 ## 软件架构
-<p align="center">
-  <img src="docs/Figures/Software-Architecture.png" alt="Software-Architecture" style="width: 100%; height: auto;">
-</p>
+<div align="center">
+  <img src="docs/Figures/Software-Architecture.png" alt="Software-Architecture">
+</div>
 
 <br>
 
@@ -85,9 +86,9 @@ Quectel User-Friendly Project，是移远通信专门为开发者设计的一套
 ### 硬件环境
 最方便的方法是使用 QSTM32-L064M-SL-EVB 开发板进行验证，其板载STM32单片机、Quectel模组、ST-Link调试器和USB-to-UART工具，详细描述可参考 [STM32_LQFP64_EVK_V2.0_User_Guide](./docs/Quick_Start/STM32%20LQFP64%20EVK%20V2.0%20User%20Guide%20V1.0-0605.pdf)
 
-<p align="center">
-  <img src="docs/Figures/QSTM32-EVK-Gen2.png" alt="QSTM32-EVK" style="width: 100%; height: auto;">
-</p>
+<div align="center">
+  <img src="docs/Figures/QSTM32-EVK-Gen2.png" alt="QSTM32-EVK">
+</div>
 
 ### 主机系统
 本SDK支持Windows和Linux开发环境，均已开发了完善的自动化脚本。
