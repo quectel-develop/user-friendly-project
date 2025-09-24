@@ -90,8 +90,8 @@ The most convenient method is using the QSTM32-L064M-SL-EVB development board fo
 
 ### Host System
 This SDK supports both Windows and Linux development environments with comprehensive automated scripts.
-- For Windows environment, Windows 10 (64-bit) is recommended. ST-Link and CP210x driver installation methods are detailed in [Quectel_QSTM32_SDK_Quick_Start_Guide](./docs/Quick_Start/Quectel_QSTM32_SDK_Quick_Start_Guide_V2.0.pdf)
-- For Linux environment, Ubuntu 18.04/20.04/22.04 and Debian-based distributions are supported. The build.sh script is theoretically compatible with other distributions, though command modifications may be required. For ST-Link and CP210x drivers, most modern Linux distributions include them in the kernel and typically don't require manual installation. Additionally, Python3 needs to be installed in advance.
+- For **`Windows`** environment, Windows 10 (64-bit) is recommended. ST-Link and CP210x driver installation methods are detailed in [Quectel_QSTM32_SDK_Quick_Start_Guide](./docs/Quick_Start/Quectel_QSTM32_SDK_Quick_Start_Guide_V2.0.pdf)
+- For **`Linux`** environment, Ubuntu 18.04/20.04/22.04 and Debian-based distributions are supported. The build.sh script is theoretically compatible with other distributions, though command modifications may be required. For ST-Link and CP210x drivers, most modern Linux distributions include them in the kernel and typically don't require manual installation. Additionally, Python3 needs to be installed in advance.
 
 ### Software Deployment
 Clone this project SDK using git:
@@ -105,21 +105,26 @@ Use build.bat for Windows development environment and build.sh for Linux environ
 
 **`For Windows environment, use the following commands:`**
 
-    .\build.bat config      # Configure build system
-    .\build.bat all         # Compile project
-    .\build.bat clean       # Clean build artifacts
-    .\build.bat download    # Download firmware
-    .\build.bat debug       # Start debugging session
+    cd user-friendly-project\source\    # Change directory
+    .\build.bat config                  # Configure build system
+    .\build.bat all                     # Compile project
+    .\build.bat clean                   # Clean build artifacts
+    .\build.bat download                # Download firmware
+    .\build.bat debug                   # Start debugging session
 
 **`For Linux environment, use the following commands:`**
 
-    ./build.sh config      # Configure build system
-    ./build.sh all         # Compile project
-    ./build.sh clean       # Clean build artifacts
-    ./build.sh download    # Download firmware
-    ./build.sh debug       # Start debugging session
+    cd user-friendly-project/source/    # Change directory
+    ./build.sh config                   # Configure build system
+    ./build.sh all                      # Compile project
+    ./build.sh clean                    # Clean build artifacts
+    ./build.sh download                 # Download firmware
+    ./build.sh debug                    # Start debugging session
 
-Note: If USB permission issues occur, use sudo, e.g., **`sudo ./build.sh download`**
+**Note:**
+- If "Permission denied" issues occur, add execution permission: **`sudo chmod +x build.sh`**
+- If USB permission issues occur, use sudo, e.g., **`sudo ./build.sh download`**
+
 
 #### Parameter Description:
     The build.bat config command can be followed by [MCU Model][Version Number] parameters, for example:
@@ -127,6 +132,8 @@ Note: If USB permission issues occur, use sudo, e.g., **`sudo ./build.sh downloa
 
     If [MCU Model][Version Number] parameters are omitted, the previously configured MCU model and version number are used.
     For first-time use without previous configuration records, the MCU defaults to STM32F413RGT6 and version number uses Quectel_UFP_Chip_Date format, e.g., Quectel_UFP_STM32F413RGT6_20250430
+
+    >> The above rules also apply to build.sh
 
 <br>
 

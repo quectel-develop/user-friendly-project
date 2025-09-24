@@ -92,8 +92,8 @@ Quectel User-Friendly Project，是移远通信专门为开发者设计的一套
 
 ### 主机系统
 本SDK支持Windows和Linux开发环境，均已开发了完善的自动化脚本。
-- 对于Windows环境，推荐使用 Windows 10(64-bit)。ST-Link 和 CP210x 的驱动安装方法详见 [Quectel_QSTM32_SDK_Quick_Start_Guide](./docs/Quick_Start/Quectel_QSTM32_SDK_Quick_Start_Guide_V2.0.pdf)
-- 对于Linux环境，支持 Ubuntu 18.04/20.04/22.04, 基于Debian的Linux发行版，build.sh脚本理论上都兼容，其他发行版需要对脚本中的命令做相应修改。对于ST-Link 和 CP210x驱动，大多数现代Linux发行版在内核中已集成，通常无需手动安装。另外，也需要提前安装python3。
+- 对于 **`Windows`** 环境，推荐使用 Windows 10(64-bit)。ST-Link 和 CP210x 的驱动安装方法详见 [Quectel_QSTM32_SDK_Quick_Start_Guide](./docs/Quick_Start/Quectel_QSTM32_SDK_Quick_Start_Guide_V2.0.pdf)
+- 对于 **`Linux`** 环境，支持 Ubuntu 18.04/20.04/22.04, 基于Debian的Linux发行版，build.sh脚本理论上都兼容，其他发行版需要对脚本中的命令做相应修改。对于ST-Link 和 CP210x驱动，大多数现代Linux发行版在内核中已集成，通常无需手动安装。另外，也需要提前安装python3。
 
 ### 软件部署
 可使用git工具克隆本项目SDK：
@@ -107,21 +107,25 @@ Windows 开发环境使用 build.bat，Linux 开发环境使用 build.sh。
 
 **`如果你使用的是 Windows, 需要用以下命令：`**
 
-    .\build.bat config      # 构建系统
-    .\build.bat all         # 编译
-    .\build.bat clean       # 清理
-    .\build.bat download    # 下载
-    .\build.bat debug       # 调试
+    cd user-friendly-project\source\    # 切换目录
+    .\build.bat config                  # 构建系统
+    .\build.bat all                     # 编译
+    .\build.bat clean                   # 清理
+    .\build.bat download                # 下载
+    .\build.bat debug                   # 调试
 
 **`如果你使用的是 Linux, 需要用以下命令：`**
 
-    ./build.sh config      # 构建系统
-    ./build.sh all         # 编译
-    ./build.sh clean       # 清理
-    ./build.sh download    # 下载
-    ./build.sh debug       # 调试
+    cd user-friendly-project/source/    # 切换目录
+    ./build.sh config                   # 构建系统
+    ./build.sh all                      # 编译
+    ./build.sh clean                    # 清理
+    ./build.sh download                 # 下载
+    ./build.sh debug                    # 调试
 
-注：如果提示USB权限问题，可使用sudo，例如 **`sudo ./build.sh download`**
+**注：**
+- 如果执行 build.sh 时报错 "Permission denied"，需要先添加执行权限：**`sudo chmod +x build.sh`**
+- 如果提示USB权限问题，可使用sudo，例如 **`sudo ./build.sh download`**
 
 
 #### 参数说明：
@@ -130,6 +134,8 @@ Windows 开发环境使用 build.bat，Linux 开发环境使用 build.sh。
 
     [芯片型号][版本号] 两个参数缺省的情况下，使用上次配置的芯片型号和版本号。
     若首次使用无先前配置记录，则芯片默认使用STM32F413RGT6，版本号默认使用格式Quectel_UFP_Chip_Date，例如Quectel_UFP_STM32F413RGT6_20250430
+
+    >> 以上规则同样适用于 build.sh
 
 <br>
 
