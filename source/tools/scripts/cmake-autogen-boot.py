@@ -6,19 +6,16 @@ from datetime import datetime
 
 # ===================== Configuration =====================
 CONFIG = {
-    "cmake_file"        :   "CMakeLists.txt",           # Path to CMakeLists.txt file
-    "backup_folder"     :   "tools/scripts/backup",     # Backup directory
-    "max_backups"       :   5,                          # Maximum number of backups
+    "cmake_file"        :   "system/platform/arm-cortex/bootloader/CMakeLists.txt", # Path to CMakeLists.txt file
     "config_file"       :   "tools/scripts/ProjectInfo.json",    # Path to configuration file
     "optimize_lvl"      :   "-O0 -g",                   # Compilation optimization level
-    "system_inc_dir"    :   "system/include",           # Common include directory for system
+    "bootloader_dir"    :   "system/platform/arm-cortex/bootloader",    # Bootloader directory for MCU platform
     "mcu_common_dir"    :   "system/platform/arm-cortex/common",    # Common directory for MCU platform
     "mcu_parent_dir"    :   "system/platform/arm-cortex",           # Parent directory for MCU platform
-    "win_parent_dir"    :   "system/platform/windows",              # Parent directory for Windows platform
     # Directories containing source and header files to be compiled under SDK root
     # Platform HAL related directories will be handled automatically
-    "compile_dir"       :   ["apps", "quectel"],        # Directories to compile
-    "exclude_dir"       :   ["Debug", "build", "tools", ".settings", ".vscode"],    # Directories to exclude
+    "compile_dir"       :   [ ],        # Directories to compile
+    "exclude_dir"       :   ["osal", "FreeRTOS", "Debug", "build", "tools", ".settings", ".vscode"],    # Directories to exclude
     "source_ext"        :   (".cpp", ".c", ".s"),       # Source file extensions
     "header_ext"        :   (".h", ".hpp")              # Header file extensions
 }
@@ -27,9 +24,8 @@ CONFIG = {
 class CMakeManager:
     def __init__(self, config):
         self.cfg = config
-        self.root_path      = Path(__file__).parent.resolve()
+        self.root_path      = Path(__file__).resolve().parent.parent.parent.parent.parent
         self.cmake_path     = self.root_path / self.cfg["cmake_file"]
-        self.backup_path    = self.root_path / self.cfg["backup_folder"]
         self.config_path    = self.root_path / self.cfg["config_file"]
 
 
@@ -71,7 +67,7 @@ class CMakeManager:
             # Project name and language
             CMakeLists = ( CMakeLists + "\n"
                         + f"# Project Settings\n"
-                        + f"project(\"{ProjectName}\" C CXX ASM)\n"
+                        + f"project(\"{ProjectName}_Bootloader\" C CXX ASM)\n"
                         + f"message(STATUS \"----- PROJECT_NAME [${{PROJECT_NAME}}] -----\")\n" )
 
             # Compiler optimization level
@@ -117,28 +113,29 @@ class CMakeManager:
             # MCU macro settings
             CMakeLists = ( CMakeLists + "\n"
                         + f"# Global MACRO definitions\n"
-                        + f"add_definitions(-DUSE_HAL_DRIVER -D{MCU_MACRO})\n\n" )
+                        + f"add_definitions(-DUSE_HAL_DRIVER -D{MCU_MACRO})\n" )
+
+            # Get SDK Root directory
+            CMakeLists = ( CMakeLists + "\n"
+                        + f"# Get SDK Root directory\n"
+                        + f"get_filename_component(SDK_ROOT_DIR \"${{CMAKE_SOURCE_DIR}}/../../../../\" ABSOLUTE)\n\n" )
 
 
 
             # Update the compile_dir list based on platform and chip
             HAL_Dir_List = []
-            if Series == "windows":
-                # HAL_Dir_List = self.cfg["win_parent_dir"]
-                HAL_Dir_List.append(self.cfg["win_parent_dir"])
-            else:
-                # HAL_Dir_List = self.cfg["mcu_parent_dir"] + "/" + Chip + "/App"
-                HAL_Dir_List.append(self.cfg["mcu_parent_dir"] + "/" + Chip + "/App") # Must locate in HAL_Dir_List[0]
-                HAL_Dir_List.append(self.cfg["mcu_common_dir"])
+            # HAL_Dir_List = self.cfg["mcu_parent_dir"] + "/" + Chip + "/Bootloader"
+            HAL_Dir_List.append(self.cfg["mcu_parent_dir"] + "/" + Chip + "/Bootloader") # Must locate in HAL_Dir_List[0]
+            HAL_Dir_List.append(self.cfg["mcu_common_dir"])
 
-            HAL_Dir_List.append(self.cfg["system_inc_dir"])
+            HAL_Dir_List.append(self.cfg["bootloader_dir"])
             self.cfg["compile_dir"].extend(HAL_Dir_List)
 
             compile_set = set(self.cfg["compile_dir"])  # Convert list to set for deduplication
-            print("\n----------- Directories to be compiled (Relative to SDK root) -------------")
+            print("\n----------- [Bootloader] Directories to be compiled (Relative to SDK root) -------------")
             for dir in compile_set:
                 print(f"-- {dir}")
-            print("---------------------------------------------------------------------------")
+            print("----------------------------------------------------------------------------------------")
 
 
             # Automatically recursively find files to compile
@@ -152,7 +149,7 @@ class CMakeManager:
                         + f"# [CONFIGURE DEPENDS] supports dynamic lookup of add-on files\n"
                         + f"file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS\n" )
             for source in sources:
-                CMakeLists = ( CMakeLists + f"    ${{CMAKE_SOURCE_DIR}}/{source}\n" )
+                CMakeLists = ( CMakeLists + f"    ${{SDK_ROOT_DIR}}/{source}\n" )
             CMakeLists = ( CMakeLists + f")\n\n" )
 
 
@@ -168,7 +165,7 @@ class CMakeManager:
                         + f"# Add global include paths (.h files)\n"
                         + f"include_directories(\n" )
             for include in includes:
-                CMakeLists = ( CMakeLists + f"    ${{CMAKE_SOURCE_DIR}}/{include}\n" )
+                CMakeLists = ( CMakeLists + f"    ${{SDK_ROOT_DIR}}/{include}\n" )
             CMakeLists = ( CMakeLists + f")\n\n" )
 
 
@@ -176,7 +173,7 @@ class CMakeManager:
             # Linker configuration
             CMakeLists = ( CMakeLists + "\n"
                         + f"# Linker Configuration\n"
-                        + f"set(LINKER_SCRIPT ${{CMAKE_SOURCE_DIR}}/{HAL_Dir_List[0]}/{Ld_Script})\n"
+                        + f"set(LINKER_SCRIPT ${{SDK_ROOT_DIR}}/{HAL_Dir_List[0]}/{Ld_Script})\n"
                         + f"add_link_options(-T ${{LINKER_SCRIPT}})\n"
                         + f"add_link_options(-m{cpu_cortex} -mthumb -mthumb-interwork)\n"
                         + f"add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${{PROJECT_BINARY_DIR}}/${{PROJECT_NAME}}.map)\n"
@@ -209,35 +206,11 @@ class CMakeManager:
                         + f")\n" )
 
             # Write to file CMakeLists.txt
-            print("-- Generating is in progress...")
+            print("-- [Bootloader] Generating is in progress...")
             file.write(CMakeLists)
             print(f"-- [{self.cmake_path}] generated successfully!")
+            print(f"-- [Bootloader] Done !")
 
-            # Output summary information
-            print(f"\n----------------Summary Info----------------")
-            print(f"-- Sources:  [{len(sources)}] directories found")
-            print(f"-- Includes: [{len(includes)}] directories found")
-            print(f"-- Project name [{ProjectName}] updated successfully")
-            print(f"-- Backup protection: [{self.backup_path}]")
-            print(f"-- CMakeLists.txt: [{self.cmake_path}]")
-            print(f"-- Done !")
-
-
-
-    def _create_backup(self):
-        """Create timestamped backup"""
-        if self.cmake_path.exists():
-            self.backup_path.mkdir(exist_ok=True)
-
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_file = self.backup_path / f"{self.cmake_path.name}.bak_{timestamp}"
-            shutil.copy(self.cmake_path, backup_file)
-            print(f"-- Backup created: {backup_file.name}")
-
-            # Clean up old backups
-            backups = sorted(self.backup_path.glob("*.bak_*"), key=os.path.getmtime)
-            while len(backups) > self.cfg["max_backups"]:
-                os.remove(backups.pop(0))
 
 
     def _recurve_find_files(self, dirs, exts, exclude):
@@ -285,9 +258,6 @@ class CMakeManager:
     def run(self):
         """Start to generate configuration files"""
         try:
-            # Create a backup
-            self._create_backup()
-
             # Create the CMakeLists.txt file
             self._create_cmakefile()
 

@@ -19,7 +19,7 @@ script_json_autogen="$script_dir/json-autogen.py"
 
 script_cmake_autogen_boot="$script_dir/cmake-autogen-boot.py"
 script_json_autogen_boot="$script_dir/json-autogen-boot.py"
-bootloader_dir=$CURDIR/platform/arm-cortex/bootloader
+bootloader_dir=$CURDIR/system/platform/arm-cortex/bootloader
 
 Project_Info_File="$script_dir/ProjectInfo.json"
 ChipList_File="$script_dir/ChipList.json"
@@ -145,14 +145,18 @@ EOF
     echo
     echo "---------- Start to Automatic Generation Config Files for Bootloader... ----------"
     if [ -f "$script_json_autogen_boot" ]; then
-        cp "$script_json_autogen_boot" .
+        cp "$script_json_autogen_boot" "$bootloader_dir"
+        pushd "$bootloader_dir"
         python3 json-autogen-boot.py
         rm json-autogen-boot.py
+        popd
     fi
     if [ -f "$script_cmake_autogen_boot" ]; then
-        cp "$script_cmake_autogen_boot" .
+        cp "$script_cmake_autogen_boot" "$bootloader_dir"
+        pushd "$bootloader_dir"
         python3 cmake-autogen-boot.py
         rm cmake-autogen-boot.py
+        popd
     fi
 
     if [ -f "$Project_Info_File" ]; then
