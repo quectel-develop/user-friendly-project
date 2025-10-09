@@ -109,7 +109,9 @@ Windows 开发环境使用 build.bat，Linux 开发环境使用 build.sh。
 
     cd user-friendly-project\source\    # 切换目录
     .\build.bat config                  # 构建系统
-    .\build.bat all                     # 编译
+    .\build.bat app                     # 编译 app
+    .\build.bat bootloader              # 编译 bootloader
+    .\build.bat all                     # 编译 app + bootloader，并merge
     .\build.bat clean                   # 清理
     .\build.bat download                # 下载
     .\build.bat debug                   # 调试
@@ -118,7 +120,9 @@ Windows 开发环境使用 build.bat，Linux 开发环境使用 build.sh。
 
     cd user-friendly-project/source/    # 切换目录
     ./build.sh config                   # 构建系统
-    ./build.sh all                      # 编译
+    ./build.sh app                      # 编译 app
+    ./build.sh bootloader               # 编译 bootloader
+    ./build.sh all                      # 编译 app + bootloader，并merge
     ./build.sh clean                    # 清理
     ./build.sh download                 # 下载
     ./build.sh debug                    # 调试

@@ -107,7 +107,9 @@ Use build.bat for Windows development environment and build.sh for Linux environ
 
     cd user-friendly-project\source\    # Change directory
     .\build.bat config                  # Configure build system
-    .\build.bat all                     # Compile project
+    .\build.bat app                     # Compile app
+    .\build.bat bootloader              # Compile bootloader
+    .\build.bat all                     # Compile app + bootloader, and merge them
     .\build.bat clean                   # Clean build artifacts
     .\build.bat download                # Download firmware
     .\build.bat debug                   # Start debugging session
@@ -116,7 +118,9 @@ Use build.bat for Windows development environment and build.sh for Linux environ
 
     cd user-friendly-project/source/    # Change directory
     ./build.sh config                   # Configure build system
-    ./build.sh all                      # Compile project
+    ./build.sh app                      # Compile app
+    ./build.sh bootloader               # Compile bootloader
+    ./build.sh all                      # Compile app + bootloader, and merge them
     ./build.sh clean                    # Clean build artifacts
     ./build.sh download                 # Download firmware
     ./build.sh debug                    # Start debugging session
