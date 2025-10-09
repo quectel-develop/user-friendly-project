@@ -10,6 +10,13 @@
 #define UFP_FLASH_CS_PORT       GPIOA
 #define UFP_FLASH_CS_PIN        GPIO_PIN_4
 
+#define UFP_NET_MOD_DET_PORT    GPIOA
+#define UFP_NET_MOD_DET_PIN     GPIO_PIN_8
+#define UFP_STATUS_DET_PORT     GPIOB
+#define UFP_STATUS_DET_PIN      GPIO_PIN_1
+#define UFP_SLEEP_DET_POR       GPIOB
+#define UFP_SLEEP_DET_PIN       GPIO_PIN_2
+
 #define UFP_SD_EN_PORT          GPIOB
 #define UFP_SD_EN_PIN           GPIO_PIN_8
 #define UFP_SD_DET_PORT         GPIOB

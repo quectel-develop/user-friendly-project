@@ -13,11 +13,16 @@ make_pkg="$tools_pkg_dir/make-4.4.1.tar.gz"
 openocd_pkg="$tools_pkg_dir/xpack-openocd-0.12.0-6-linux-x64.tar.gz"
 
 cmd_cmake="$compile_tools_dir/cmake/bin/cmake"
-script_cmake_autogen="$CURDIR/tools/scripts/cmake-autogen.py"
-script_json_autogen="$CURDIR/tools/scripts/json-autogen.py"
+script_dir="$CURDIR/tools/scripts"
+script_cmake_autogen="$script_dir/cmake-autogen.py"
+script_json_autogen="$script_dir/json-autogen.py"
 
-Project_Info_File="$CURDIR/tools/scripts/ProjectInfo.json"
-ChipList_File="$CURDIR/tools/scripts/ChipList.json"
+script_cmake_autogen_boot="$script_dir/cmake-autogen-boot.py"
+script_json_autogen_boot="$script_dir/json-autogen-boot.py"
+bootloader_dir=$CURDIR/platform/arm-cortex/bootloader
+
+Project_Info_File="$script_dir/ProjectInfo.json"
+ChipList_File="$script_dir/ChipList.json"
 DEFAULT_CHIP="STM32F413RGT6"
 DEFAULT_VER="Quectel_UFP_Chip_Date"
 chip=""
@@ -124,7 +129,7 @@ cmd_config() {
 EOF
 
     echo
-    echo "---------- Start to Automatic Generation Config Files... ----------"
+    echo "---------- Start to Automatic Generation Config Files for App... ----------"
     if [ -f "$script_json_autogen" ]; then
         cp "$script_json_autogen" .
         python3 json-autogen.py
@@ -134,6 +139,20 @@ EOF
         cp "$script_cmake_autogen" .
         python3 cmake-autogen.py
         rm cmake-autogen.py
+    fi
+
+    echo
+    echo
+    echo "---------- Start to Automatic Generation Config Files for Bootloader... ----------"
+    if [ -f "$script_json_autogen_boot" ]; then
+        cp "$script_json_autogen_boot" .
+        python3 json-autogen-boot.py
+        rm json-autogen-boot.py
+    fi
+    if [ -f "$script_cmake_autogen_boot" ]; then
+        cp "$script_cmake_autogen_boot" .
+        python3 cmake-autogen-boot.py
+        rm cmake-autogen-boot.py
     fi
 
     if [ -f "$Project_Info_File" ]; then
@@ -159,17 +178,56 @@ EOF
     echo "-- target: $target"
 
     echo
-    echo "------------CMake starts generating the build system-------------"
+    echo "------------CMake starts generating the build system for Bootloader-------------"
+    pushd "$bootloader_dir"
+    $cmd_cmake --preset=Bootloader-Debug
+    popd
+
+    echo
+    echo "------------CMake starts generating the build system for App-------------"
     "$cmd_cmake" --preset=STM32-Debug
 }
 
-cmd_all() {
+cmd_app() {
     "$cmd_cmake" --build --preset=STM32-Build
 }
 
+cmd_bootloader() {
+    pushd "$bootloader_dir"
+    "$cmd_cmake" --build --preset=Bootloader-Build
+    popd
+}
+
+cmd_merge() {
+    if [ -f "$Project_Info_File" ]; then
+        version=$(get_json_value "version")
+    fi
+
+    app_elf_path="${CURDIR}${build_dir}/${version}.elf"
+    boot_elf_path="${bootloader_dir}/build/${version}_Bootloader.elf"
+    merge_bin_path="${build_dir}/_Merge/${version}_Merge.bin"
+
+    if [ ! -d "${build_dir}/_Merge" ]; then
+        mkdir -p "${build_dir}/_Merge"
+    fi
+
+    # Merge bootloader and app
+    $cmd_python "${script_dir}/merge-firmware.py" -b "$boot_elf_path" -a "$app_elf_path" -o "$merge_bin_path"
+}
+
+cmd_all() {
+    cmd_bootloader
+    cmd_app
+    cmd_merge
+}
+
 cmd_clean() {
+    pushd "$bootloader_dir"
+    "$cmd_cmake" --build --preset=Bootloader-Clean
+    popd
+    echo "-- Bootloader clean done."
     "$cmd_cmake" --build --preset=STM32-Clean
-    echo "-- Project clean done !"
+    echo "-- App clean done."
 }
 
 cmd_download() {
@@ -178,17 +236,18 @@ cmd_download() {
         interface=$(get_json_value "interface")
         target=$(get_json_value "target")
     fi
-    firmware_path="$CURDIR/$build_dir/$version.elf"
+    merge_bin_path="$CURDIR/$build_dir/_Merge/${version}_Merge.bin"
     if [ -z "$interface" ]; then interface="$DEFAULT_INTERFACE_CFG"; fi
     if [ -z "$target" ]; then target="$DEFAULT_TARGET_CFG"; fi
     echo
-    echo "-- Firmware path [$firmware_path]"
+    echo "-- Firmware path [$merge_bin_path]"
     echo "-- Prepare to download..."
     echo
     "$cmd_openocd" \
         -f "$interface" \
         -f "$target" \
-        -c "program $build_dir/$version.elf verify reset exit"
+        -c "program $build_dir/_Merge/${version}_Merge.bin 0x8000000 verify reset exit"
+        # -c "program $build_dir/$version.elf verify reset exit"
 }
 
 cmd_debug() {
@@ -204,10 +263,10 @@ cmd_debug() {
     echo "-- GDB port:     [$GBD_PORT]"
     echo "-- Adpter speed: [$ADAPTER_SPEED] kHz"
     echo "-- Starting OpenOCD debugger..."
-	
+
 	# 0- Kill openocd process first (Last time exit abnormally)
 	kill -9 $(pgrep openocd)
-	
+
     # 1- Start OpenOCD (Running in the background)
     "$cmd_openocd" \
         -f "$interface" \
@@ -237,6 +296,15 @@ case "$Command" in
     "config")
         cmd_config
         ;;
+    "app")
+        cmd_app
+        ;;
+    "bootloader")
+        cmd_bootloader
+        ;;
+    "merge")
+        cmd_merge
+        ;;
     "all")
         cmd_all
         ;;
@@ -250,7 +318,7 @@ case "$Command" in
         cmd_debug
         ;;
     *)
-        echo "Usage: $0 {config|all|clean|download|debug} [chip] [version]"
+        echo "Usage: $0 {config|app|bootloader|all|clean|download|debug} [chip] [version]"
         exit 1
         ;;
 esac

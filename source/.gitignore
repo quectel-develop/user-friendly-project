@@ -3,9 +3,13 @@
 .vscode/
 out/
 build/*
-system/platform/arm-cortex/STM32F401RET6/Debug
-system/platform/arm-cortex/STM32F413RGT6/Debug
-system/platform/arm-cortex/STM32F413VGT6/Debug
+system/platform/arm-cortex/bootloader/build/*
+system/platform/arm-cortex/App/STM32F401RET6/Debug
+system/platform/arm-cortex/App/STM32F413RGT6/Debug
+system/platform/arm-cortex/App/STM32F413VGT6/Debug
+system/platform/arm-cortex/Bootloader/STM32F401RET6/Debug
+system/platform/arm-cortex/Bootloader/STM32F413RGT6/Debug
+system/platform/arm-cortex/Bootloader/STM32F413VGT6/Debug
 Debug/*
 Release/*
 tools/scripts/ProjectInfo.json

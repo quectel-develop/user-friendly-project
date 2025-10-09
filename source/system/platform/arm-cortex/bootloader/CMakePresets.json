@@ -1,0 +1,65 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "env_config",
+            "hidden": true,
+            "environment": {
+                "RootDir": "${sourceDir}/../../../../"
+            }
+        },
+        {
+            "name": "Bootloader-Base",
+            "inherits": "env_config",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
+            "cmakeExecutable": "$env{RootDir}/tools/windows/toolchain/cmake/bin/cmake",
+            "environment": {
+                "PATH": "$env{RootDir}/tools/windows/toolchain/arm-gcc/bin"
+            },
+            "cacheVariables": {
+                "CMAKE_MAKE_PROGRAM": "$env{RootDir}/tools/windows/toolchain/mingw64/bin/make",
+                "CMAKE_C_COMPILER": "arm-none-eabi-gcc",
+                "CMAKE_CXX_COMPILER": "arm-none-eabi-g++"
+            }
+        },
+        {
+            "name": "Bootloader-Debug",
+            "displayName": "Configuration-Debug",
+            "description": "Generates the build system by CMake",
+            "inherits": "Bootloader-Base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": true
+            }
+        },
+        {
+            "name": "Bootloader-Release",
+            "displayName": "Configuration-Release",
+            "description": "Generates the build system by CMake",
+            "inherits": "Bootloader-Base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": false
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "Bootloader-Build",
+            "configurePreset": "Bootloader-Debug",
+            "targets": [
+                "all"
+            ],
+            "jobs": 8,
+            "cleanFirst": false
+        },
+        {
+            "name": "Bootloader-Clean",
+            "configurePreset": "Bootloader-Debug",
+            "targets": [
+                "clean"
+            ]
+        }
+    ]
+}

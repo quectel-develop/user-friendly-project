@@ -19,7 +19,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # Project Settings
-project("Quectel_UFP_STM32F413RGT6_20250916" C CXX ASM)
+project("Quectel_UFP_STM32F413RGT6_20251009" C CXX ASM)
 message(STATUS "----- PROJECT_NAME [${PROJECT_NAME}] -----")
 
 # Compiler optimization level
@@ -70,9 +70,9 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/quectel/common/src/*.c
     ${CMAKE_SOURCE_DIR}/quectel/modules/src/*.c
     ${CMAKE_SOURCE_DIR}/quectel/third_party/at_client/src/*.c
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Core/Src/*.c
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Core/Startup/*.s
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Drivers/STM32F4xx_HAL_Driver/Src/*.c
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/App/Core/Src/*.c
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/App/Core/Startup/*.s
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/App/Drivers/STM32F4xx_HAL_Driver/Src/*.c
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/FATFS/App/*.c
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/FATFS/Target/*.c
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FatFs/src/*.c
@@ -110,11 +110,11 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/quectel/third_party/at_client/include
     ${CMAKE_SOURCE_DIR}/system/include/hal
     ${CMAKE_SOURCE_DIR}/system/include/osal
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Core/Inc
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Drivers/CMSIS/Device/ST/STM32F4xx/Include
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Drivers/CMSIS/Include
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Drivers/STM32F4xx_HAL_Driver/Inc
-    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/App/Core/Inc
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/App/Drivers/CMSIS/Device/ST/STM32F4xx/Include
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/App/Drivers/CMSIS/Include
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/App/Drivers/STM32F4xx_HAL_Driver/Inc
+    ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/App/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/FATFS/App
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/FATFS/Target
     ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FatFs/src
@@ -126,7 +126,7 @@ include_directories(
 
 
 # Linker Configuration
-set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/STM32F413RGTX_FLASH.ld)
+set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/system/platform/arm-cortex/STM32F413RGT6/App/STM32F413RGTX_FLASH.ld)
 add_link_options(-T ${LINKER_SCRIPT})
 add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)

@@ -9,11 +9,16 @@ set compile_tools_file=%CURDIR%tools\windows\packages\toolchain.7z.001
 set compile_tools_dir=%CURDIR%tools\windows\toolchain
 set cmd_cmake=%compile_tools_dir%\cmake\bin\cmake.exe
 set cmd_python=%compile_tools_dir%\python\python.exe
-set script_cmake_autogen=%CURDIR%tools\scripts\cmake-autogen.py
-set script_json_autogen=%CURDIR%tools\scripts\json-autogen.py
+set script_dir=%CURDIR%tools\scripts
+set script_cmake_autogen=%script_dir%\cmake-autogen.py
+set script_json_autogen=%script_dir%\json-autogen.py
 
-set Project_Info_File=%CURDIR%tools\scripts\ProjectInfo.json
-set ChipList_File=%CURDIR%tools\scripts\ChipList.json
+set script_cmake_autogen_boot=%script_dir%\cmake-autogen-boot.py
+set script_json_autogen_boot=%script_dir%\json-autogen-boot.py
+set bootloader_dir=%CURDIR%system\platform\arm-cortex\bootloader
+
+set Project_Info_File=%script_dir%\ProjectInfo.json
+set ChipList_File=%script_dir%\ChipList.json
 set DEFAULT_CHIP=STM32F413RGT6
 set DEFAULT_VER=Quectel_UFP_Chip_Date
 set chip=
@@ -44,6 +49,18 @@ setlocal enabledelayedexpansion
 
 if "%Command%" == "config" (
     @call :cmd_config
+)
+
+if "%Command%" == "app" (
+	@call :cmd_app
+)
+
+if "%Command%" == "bootloader" (
+	@call :cmd_bootloader
+)
+
+if "%Command%" == "merge" (
+	@call :cmd_merge
 )
 
 if "%Command%" == "all" (
@@ -141,7 +158,7 @@ echo }
 ) > %Project_Info_File%
 
 echo.
-echo ---------- Start to Automatic Generation Config Files... ----------
+echo ---------- Start to Automatic Generation Config Files for App... ----------
 if exist %script_json_autogen% (
     copy %script_json_autogen% . >nul
     %cmd_python% json-autogen.py
@@ -151,6 +168,24 @@ if exist %script_cmake_autogen% (
     copy %script_cmake_autogen% . >nul
     %cmd_python% cmake-autogen.py
     del cmake-autogen.py
+)
+
+echo.
+echo.
+echo ---------- Start to Automatic Generation CMake Files for Bootloader... ----------
+if exist %script_json_autogen_boot% (
+    copy %script_json_autogen_boot% %bootloader_dir% >nul
+    pushd %bootloader_dir%
+    %cmd_python% json-autogen-boot.py
+    del json-autogen-boot.py
+    popd
+)
+if exist %script_cmake_autogen_boot% (
+    copy %script_cmake_autogen_boot% %bootloader_dir% >nul
+    pushd %bootloader_dir%
+    %cmd_python% cmake-autogen-boot.py
+    del cmake-autogen-boot.py
+    popd
 )
 
 if EXIST %Project_Info_File% (
@@ -175,19 +210,56 @@ echo -- interface: %interface%
 echo -- target: %target%
 
 echo.
-echo ------------CMake starts generating the build system-------------
+echo ------------CMake starts generating the build system for Bootloader-------------
+pushd %bootloader_dir%
+%cmd_cmake% --preset=Bootloader-Debug
+popd
+
+echo.
+echo ------------CMake starts generating the build system for App-------------
 %cmd_cmake% --preset=STM32-Debug
 goto:eof
 
 
-:cmd_all
+:cmd_app
 %cmd_cmake% --build --preset=STM32-Build
 goto:eof
 
 
+:cmd_bootloader
+pushd %bootloader_dir%
+%cmd_cmake% --build --preset=Bootloader-Build
+popd
+goto:eof
+
+
+:cmd_merge
+if EXIST %Project_Info_File% (
+    @call :parse_json version
+)
+set app_elf_path=%CURDIR%%build_dir%\%version%.elf
+set boot_elf_path=%bootloader_dir%\build\%version%_Bootloader.elf
+set merge_bin_path=%build_dir%\_Merge\%version%_Merge.bin
+if NOT exist %build_dir%\_Merge md %build_dir%\_Merge
+@REM Merge bootloader and app
+%cmd_python% %script_dir%\merge-firmware.py -b %boot_elf_path% -a %app_elf_path% -o %merge_bin_path%
+goto:eof
+
+
+:cmd_all
+@call :cmd_bootloader
+@call :cmd_app
+@call :cmd_merge
+goto:eof
+
+
 :cmd_clean
+pushd %bootloader_dir%
+%cmd_cmake% --build --preset=Bootloader-Clean
+popd
+echo -- Bootloader clean done.
 %cmd_cmake% --build --preset=STM32-Clean
-echo -- Project clean done !
+echo -- App clean done.
 goto:eof
 
 
@@ -197,17 +269,18 @@ if EXIST %Project_Info_File% (
     @call :parse_json interface
     @call :parse_json target
 )
-set firmware_path=%CURDIR%%build_dir%\%version%.elf
+set merge_bin_path=%build_dir%\_Merge\%version%_Merge.bin
 if "%interface%" == "" set interface=DEFAULT_INTERFACE_CFG
 if "%target%" == "" set target=DEFAULT_TARGET_CFG
 echo.
-echo -- Firmware path [%firmware_path%]
+echo -- Firmware path [%merge_bin_path%]
 echo -- Prepare to download...
 echo.
 %cmd_openocd% ^
     -f %interface% ^
     -f %target% ^
-    -c "program %build_dir%/%version%.elf verify reset exit"
+    -c "program %build_dir%/_Merge/%version%_Merge.bin 0x8000000 verify reset exit"
+    @REM -c "program %build_dir%/%version%.elf verify reset exit"
 goto:eof
 
 

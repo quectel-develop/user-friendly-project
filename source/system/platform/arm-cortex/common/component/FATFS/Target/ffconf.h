@@ -25,7 +25,10 @@
 #include "main.h"
 #include "stm32f4xx_hal.h"
 #include "bsp_driver_sd.h"
+#include "main.h"
+#ifdef __APP_USE_RTOS__
 #include "cmsis_os.h" /* _FS_REENTRANT set to 1 and CMSIS API chosen */
+#endif /* __APP_USE_RTOS__ */
 
 /*-----------------------------------------------------------------------------/
 / Function Configurations
@@ -239,11 +242,16 @@
 /      can be opened simultaneously under file lock control. Note that the file
 /      lock control is independent of re-entrancy. */
 
+#ifdef __APP_USE_RTOS__
 #define _FS_REENTRANT    1  /* 0:Disable or 1:Enable */
+#define _SYNC_t          osSemaphoreId_t
+#else
+#define _FS_REENTRANT    0  /* 0:Disable or 1:Enable */
+#define _SYNC_t          NULL
+#endif /* __APP_USE_RTOS__ */
 
 #define _USE_MUTEX       0 /* 0:Disable or 1:Enable */
 #define _FS_TIMEOUT      1000 /* Timeout period in unit of time ticks */
-#define _SYNC_t          osSemaphoreId_t
 /* The option _FS_REENTRANT switches the re-entrancy (thread safe) of the FatFs
 /  module itself. Note that regardless of this option, file access to different
 /  volume is always re-entrant and volume control functions, f_mount(), f_mkfs()
@@ -263,8 +271,14 @@
 
 /* define the ff_malloc ff_free macros as FreeRTOS pvPortMalloc and vPortFree macros */
 #if !defined(ff_malloc) && !defined(ff_free)
+#ifdef __APP_USE_RTOS__
 #define ff_malloc  pvPortMalloc
 #define ff_free  vPortFree
+#else
+#include <stdlib.h>
+#define ff_malloc  malloc
+#define ff_free  free
+#endif /* __APP_USE_RTOS__ */
 #endif
 
 #endif /* _FFCONF */

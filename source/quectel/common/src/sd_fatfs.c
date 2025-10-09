@@ -81,7 +81,7 @@ bool ql_sd_init(void)
 		}
 	}
 
-	LOG_E("sd card mount valit falil %d", RES);
+	LOG_E("sd card mount failed [%d]", RES);
 	return QOSA_FALSE;
 }
 

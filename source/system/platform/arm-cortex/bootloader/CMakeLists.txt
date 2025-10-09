@@ -1,0 +1,110 @@
+###############################################################################
+# CMake Toolchain Configuration for STM32 Embedded Project
+# THIS FILE IS AUTO GENERATED FROM THE TEMPLATE! DO NOT CHANGE!
+###############################################################################
+cmake_minimum_required(VERSION 3.20)
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_VERSION 1)
+
+# Cross-compilation Toolchain Setup
+set(CMAKE_C_COMPILER arm-none-eabi-gcc)
+set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
+set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)
+set(CMAKE_AR arm-none-eabi-ar)
+set(CMAKE_OBJCOPY arm-none-eabi-objcopy)
+set(CMAKE_OBJDUMP arm-none-eabi-objdump)
+set(SIZE arm-none-eabi-size)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+
+# Project Settings
+project("Quectel_UFP_STM32F413RGT6_20251009_Bootloader" C CXX ASM)
+message(STATUS "----- PROJECT_NAME [${PROJECT_NAME}] -----")
+
+# Compiler optimization level
+set(OPTIMIZE_LEVEL -O0 -g)
+add_compile_options(${OPTIMIZE_LEVEL})
+message(STATUS "Compiler Optimization Level [${OPTIMIZE_LEVEL}]")
+message(STATUS "Using ${CMAKE_GENERATOR} generator")
+
+# Compiler options configuration
+add_compile_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
+add_compile_options(-ffunction-sections -fdata-sections -fno-common -fmessage-length=0)
+add_compile_options(-std=gnu11 -Wall -fstack-usage)
+
+# Hardware FPU configuration (uncomment to enable)
+add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
+add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+
+# Software floating-point (enable when disabling hardware FPU)
+# add_compile_options(-mfloat-abi=soft)
+
+# Mitigate c++17 absolute addresses warnings (uncomment to enable)
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
+
+# Global MACRO definitions
+add_definitions(-DUSE_HAL_DRIVER -DSTM32F413xx)
+
+# Get SDK Root directory
+get_filename_component(SDK_ROOT_DIR "${CMAKE_SOURCE_DIR}/../../../../" ABSOLUTE)
+
+
+# Add source file paths recursively (.c/.s files) with dynamic refresh
+# [CONFIGURE DEPENDS] supports dynamic lookup of add-on files
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/STM32F413RGT6/Bootloader/Core/Src/*.c
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/STM32F413RGT6/Bootloader/Core/Startup/*.s
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/STM32F413RGT6/Bootloader/Drivers/STM32F4xx_HAL_Driver/Src/*.c
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/bootloader/src/*.c
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/common/component/FATFS/App/*.c
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/common/component/FATFS/Target/*.c
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FatFs/src/*.c
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FatFs/src/option/*.c
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/common/hal/*.c
+)
+
+
+# Add global include paths (.h files)
+include_directories(
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/STM32F413RGT6/Bootloader/Core/Inc
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/STM32F413RGT6/Bootloader/Drivers/CMSIS/Device/ST/STM32F4xx/Include
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/STM32F413RGT6/Bootloader/Drivers/CMSIS/Include
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/STM32F413RGT6/Bootloader/Drivers/STM32F4xx_HAL_Driver/Inc
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/STM32F413RGT6/Bootloader/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/bootloader/inc
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/common/component/FATFS/App
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/common/component/FATFS/Target
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/common/component/Middlewares/Third_Party/FatFs/src
+    ${SDK_ROOT_DIR}/system/platform/arm-cortex/common/hal
+)
+
+
+# Linker Configuration
+set(LINKER_SCRIPT ${SDK_ROOT_DIR}/system/platform/arm-cortex/STM32F413RGT6/Bootloader/STM32F413RGTX_FLASH.ld)
+add_link_options(-T ${LINKER_SCRIPT})
+add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
+add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
+add_link_options(-specs=nano.specs -specs=nosys.specs)
+add_link_options(-static -Wl,--start-group -lc -lm -Wl,--end-group)
+# Enable float printf support (+~10KB firmware size)
+# add_link_options(-u _printf_float)
+
+# Generate ELF output
+add_executable(${PROJECT_NAME}.elf ${SOURCES})
+
+# Set the pre-processor MACRO
+target_compile_definitions(${PROJECT_NAME}.elf PRIVATE QUECTEL_PROJECT_VERSION="${PROJECT_NAME}" PRIVATE QUECTEL_BUILD_ENV="WINDOWS")
+
+# Set output file paths
+set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
+set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
+
+# HEX/BIN generation rules
+add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} -Oihex $<TARGET_FILE:${PROJECT_NAME}.elf> ${HEX_FILE}
+        COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${BIN_FILE}
+        COMMENT "Generating build artifacts:\nHEX: ${HEX_FILE}\nBIN: ${BIN_FILE}"
+        VERBATIM
+)

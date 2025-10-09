@@ -1,4 +1,5 @@
 #include "main.h"
+#ifdef __APP_USE_RTOS__
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -382,3 +383,4 @@ void qosa_uart_hardware_init(void)
     debug_uart_hardware_init();
 }
 
+#endif /* __APP_USE_RTOS__ */
