@@ -207,7 +207,7 @@ cmd_merge() {
         version=$(get_json_value "version")
     fi
 
-    app_elf_path="${CURDIR}${build_dir}/${version}.elf"
+    app_elf_path="${CURDIR}/${build_dir}/${version}.elf"
     boot_elf_path="${bootloader_dir}/build/${version}_Bootloader.elf"
     merge_bin_path="${build_dir}/_Merge/${version}_Merge.bin"
 
@@ -216,7 +216,7 @@ cmd_merge() {
     fi
 
     # Merge bootloader and app
-    $cmd_python "${script_dir}/merge-firmware.py" -b "$boot_elf_path" -a "$app_elf_path" -o "$merge_bin_path"
+    python3 "${script_dir}/merge-firmware.py" -b "$boot_elf_path" -a "$app_elf_path" -o "$merge_bin_path"
 }
 
 cmd_all() {
