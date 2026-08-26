@@ -13,6 +13,7 @@
 #include "sd_fatfs.h"
 #include "ql_module_compat.h"
 #include "ql_dev.h"
+#include "usart.h"
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN64)
 #include "windows.h"
@@ -157,7 +158,7 @@ int ql_wait_module_ready(at_client_t client, u32_t timeout)
 
 int ql_echo_mode_enable(at_client_t client, bool onoff)
 {
-    at_response_t resp = at_create_resp_new(128, 0, (5000), NULL);
+    at_response_t resp = at_create_resp_new(128, 0, 5000, NULL);
     char* cmd = onoff ? "ATE1" : "ATE0";
 
     at_obj_exec_cmd(client, resp, cmd);
@@ -167,7 +168,7 @@ int ql_echo_mode_enable(at_client_t client, bool onoff)
 
 int ql_set_urc_cfg(at_client_t client, bool main)
 {
-    at_response_t resp = at_create_resp_new(128, 0, (5000), NULL);
+    at_response_t resp = at_create_resp_new(128, 0, 5000, NULL);
     char* content = main ? "main" : "uart1";
 
     at_obj_exec_cmd(client, resp, "AT+QURCCFG=\"urcport\",\"%s\"", content);
@@ -175,25 +176,38 @@ int ql_set_urc_cfg(at_client_t client, bool main)
     return 0;
 }
 
-int ql_uart_flow_control_enable(at_client_t client, bool onoff)
+int ql_uart_config(at_client_t client, ql_uart_baud_e baudrate, bool flow_control)
 {
-    at_response_t resp = at_create_resp_new(128, 0, (5000), NULL);
-    char* cmd = onoff ? "AT+IFC=2,2" : "AT+IFC=0,0";
+    at_response_t resp = at_create_resp_new(128, 0, 300, NULL);
 
+    char* cmd = flow_control ? "AT+IFC=2,2" : "AT+IFC=0,0";
     if (at_obj_exec_cmd(client, resp, cmd) < 0)
     {
         at_delete_resp(resp);
         LOG_E("AT+IFC failed.");
         return -1;
     }
+    at_obj_exec_cmd(client, resp, "AT+IFC?");
+
+    if (at_obj_exec_cmd(client, resp, "AT+IPR=%d", baudrate) < 0)
+    {
+        at_delete_resp(resp);
+        LOG_E("AT+IPR failed.");
+        return -1;
+    }
+    MX_USART2_UART_Init(baudrate, flow_control);
+    qosa_task_sleep_ms(200);
+    at_obj_exec_cmd(client, resp, "AT+IPR?");
+
     at_delete_resp(resp);
     return 0;
 }
+
 static void ql_net_query_moudle_model(at_client_t client)
 {
     at_response_t query_resp = NULL;
     // Creating a response object for AT command
-    query_resp = at_create_resp(256, 0, (5000));
+    query_resp = at_create_resp(256, 0, 5000);
     if (NULL == query_resp)
     {
         LOG_E("No memory for response object.");
@@ -222,15 +236,22 @@ static void ql_net_query_moudle_model(at_client_t client)
     // If the expected format is not found in the response
     at_delete_resp(query_resp);
 }
-int ql_at_uart_init(at_client_t client)
-{
-    int ret = 0;
-    qosa_task_sleep_ms(500);
 
-    ret += at_client_init(client, 1024, 1024);
-    ret += ql_wait_module_ready(client, 20000);
-    ret += ql_uart_flow_control_enable(client, true);
-    ret += ql_echo_mode_enable(client, false);
+int ql_at_uart_init(ql_uart_config_t *config)
+{
+    at_client_t client      = config->client ? config->client : at_client_get_first();
+    size_t rx_buffer_size   = config->rx_buffer_size ? config->rx_buffer_size : 1024;
+    size_t tx_buffer_size   = config->tx_buffer_size ? config->tx_buffer_size : 1024;
+    u32_t timeout           = config->timeout ? config->timeout : 20000;
+    bool echo_mode          = config->echo_mode ? config->echo_mode : false;
+    bool flow_control       = config->flow_control ? config->flow_control : true;
+    ql_uart_baud_e baudrate = config->baudrate;
+    int ret = 0;
+
+    ret += at_client_init(client, rx_buffer_size, tx_buffer_size);
+    ret += ql_wait_module_ready(client, timeout);
+    ret += ql_echo_mode_enable(client, echo_mode);
+    ret += ql_uart_config(client, baudrate, flow_control);
     ql_net_query_moudle_model(client);
     ql_set_urc_cfg(client, ql_urccfg_is_main());
 

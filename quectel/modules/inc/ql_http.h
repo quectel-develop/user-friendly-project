@@ -161,6 +161,14 @@ int ql_http_recv(ql_http_t handle, char* buf, size_t size);
  */
 void ql_http_deinit(ql_http_t handle);
 
+/**
+ * @brief Read HTTP response data
+ *
+ * @param handle HTTP client handle
+ * @return QL_HTTP_ERR_CODE_E Error code indicating read status
+ */
+QL_HTTP_ERR_CODE_E ql_http_read(ql_http_t handle);
+
 #ifdef __cplusplus
 }
 #endif

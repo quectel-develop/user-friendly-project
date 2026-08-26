@@ -65,6 +65,7 @@ typedef enum
 {
     QL_HTTP_OK,
     QL_HTTP_ERR_NOINIT,
+    QL_HTTP_ERR_NOMEMORY,
     QL_HTTP_ERR_PARAM_INVALID,
     QL_HTTP_ERR_SSL_CONFIG,
     QL_HTTP_ERR_URL_ERROR,
@@ -234,4 +235,4 @@ typedef enum
     QL_SOCKET_ERR_PORT_BUSY          = 574   ///< Network port unavailable
 } QL_SOCKET_ERR_CODE_E;
 
-#endif 
+#endif

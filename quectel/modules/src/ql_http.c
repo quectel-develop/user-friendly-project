@@ -1,9 +1,12 @@
 #include "QuectelConfig.h"
 #ifdef __QUECTEL_UFP_FEATURE_SUPPORT_HTTP_S__
+#define _GNU_SOURCE
+#include <string.h>
 #include <stdarg.h>
 #include "qosa_log.h"
 #include "ql_module_compat.h"
 #include "ql_http.h"
+#include "at.h"
 
 /**
  * Initialize an HTTP client instance.
@@ -29,7 +32,8 @@ static const char* s_qt_http_option_strings[] =
     [QL_HTTP_OPT_RESPONSE_HEADER]  = "responseheader",
     [QL_HTTP_OPT_SSL_CONTEXT_ID]   = "sslctxid",
     [QL_HTTP_OPT_CONTENT_TYPE]     = "contenttype",
-    [QL_HTTP_OPT_CUSTOM_HEADER]    = "custom_header",
+    // [QL_HTTP_OPT_CUSTOM_HEADER]    = "custom_header",  // BG95
+    [QL_HTTP_OPT_CUSTOM_HEADER]    = "header",  // EC600U
     [QL_HTTP_OPT_UNKNOWN]          = "unknown"
 };
 
@@ -160,68 +164,88 @@ static void ql_http_cb(const char *data, size_t len, void* arg)
     char body_desc[16] = {0};
     char body_data[HTTP_POST_MAX_LEN] = {0};
     int read_len = 0;
+
     at_client_obj_recv(handle->client, body_desc, strlen(s_body_start_description), 2 * RT_TICK_PER_SECOND, true);
-    if (memcmp(body_desc, s_body_start_description, strlen(s_body_start_description)) != 0)
-    {
+    if (memcmp(body_desc, s_body_start_description, strlen(s_body_start_description)) != 0) {
         LOG_E("GET CONNECT FAILED %s", body_desc);
         return;
     }
-    if (handle->usr_write_cb != NULL)
-    {
+    if (handle->usr_write_cb) {
         handle->usr_write_cb(QL_HTTP_USR_EVENT_START, NULL, handle->content_length, handle->user_write_data);
     }
+
     bool has_header = handle->response_header;
-    while (handle->content_left > 0)
-    {
-        // need process header
-        if (has_header)
+    bool found_ok_flag = false;  // indicate whether the end marker has been found in the data stream
+    while (1)
         {
+        if (has_header) {
             memset(body_data, 0, HTTP_POST_MAX_LEN);
             read_len = at_client_self_recv(handle->client, body_data, HTTP_POST_MAX_LEN, (handle->timeout - 1) * RT_TICK_PER_SECOND, 1, false);
-            if (handle->usr_write_cb != NULL)
+            if (handle->usr_write_cb) {
                 handle->usr_write_cb(QL_HTTP_USR_EVENT_HEADER_DATA, body_data, read_len, handle->user_write_data);
-            if (strcmp(body_data, "\r\n") == 0)
-            {
+            }
+            if (strcmp(body_data, "\r\n") == 0) {
                 LOG_I("http header end");
                 has_header = false;
             }
             else
                 continue;
         }
-        read_len = handle->content_left > HTTP_POST_MAX_LEN ? HTTP_POST_MAX_LEN : handle->content_left;
-        read_len = at_client_obj_recv(handle->client, body_data, read_len, 10 * RT_TICK_PER_SECOND, false);
-        if (read_len <= 0)
-        {
+
+        if (handle->content_left > 0) {
+            // if the URC returned has body length, e.g. +QHTTPPOST: 0,200,64
+            read_len = (handle->content_left > HTTP_POST_MAX_LEN) ? HTTP_POST_MAX_LEN : handle->content_left;
+        } else {
+            // if the URC returned has no body length, e.g. +QHTTPPOST: 0,200
+            read_len = HTTP_POST_MAX_LEN;
+        }
+
+        memset(body_data, 0, HTTP_POST_MAX_LEN);
+        read_len = at_client_obj_recv(handle->client, body_data, read_len, 200, false);
+        if (read_len <= 0) {
             LOG_E("http body read error");
             handle->err_code = QL_HTTP_ERR_TIMEOUT;
             break;
         }
-        if (handle->usr_write_cb != NULL)
-        {
-            handle->usr_write_cb(QL_HTTP_USR_EVENT_BODY_DATA, body_data, read_len, handle->user_write_data);
+
+        char* end_pos = memmem(body_data, read_len, s_body_end_description, strlen(s_body_end_description));
+        // end marker detected
+        if (end_pos) {
+            size_t body_len = end_pos - body_data;  // data before the end marker is the body
+            if (body_len > 0) {
+                if (handle->usr_write_cb) {
+                    handle->usr_write_cb(QL_HTTP_USR_EVENT_BODY_DATA, body_data, body_len, handle->user_write_data);
+                } else {
+                    memcpy(handle->data + handle->content_length - handle->content_left, body_data, body_len);
         }
-        else
-        {
+                if (handle->content_left > 0)
+                    handle->content_left -= body_len;
+            }
+            found_ok_flag = true;
+            LOG_I("\"OK\" found in data stream");
+            break;
+        }
+
+        // no end marker, treat the whole block as body
+        if (handle->usr_write_cb) {
+            handle->usr_write_cb(QL_HTTP_USR_EVENT_BODY_DATA, body_data, read_len, handle->user_write_data);
+        } else {
             memcpy(handle->data + handle->content_length - handle->content_left, body_data, read_len);
         }
+
+        if (handle->content_left > 0)
         handle->content_left -= read_len;
     }
     handle->content_left = handle->content_length; // reset
-    memset(body_desc, 0, strlen(body_desc));
-    at_client_obj_recv(handle->client, body_desc, strlen(s_body_end_description), 2 * RT_TICK_PER_SECOND, true);
-    if (memcmp(body_desc, s_body_end_description, strlen(s_body_end_description)) != 0)
-    {
-        LOG_W("GET OK FAILED %s", body_desc);
-        if (handle->usr_write_cb != NULL)
-        {
-            handle->usr_write_cb(QL_HTTP_USR_EVENT_END, NULL, -1, handle->user_write_data);
-        }
-        qosa_sem_release(handle->sem);
+
+    if (!found_ok_flag) {
+        LOG_E("GET \"OK\" FAILED");
     }
-    else if (handle->usr_write_cb != NULL)
-    {
+
+    if (handle->usr_write_cb) {
         handle->usr_write_cb(QL_HTTP_USR_EVENT_END, NULL, 0, handle->user_write_data);
     }
+    qosa_sem_release(handle->sem);
 }
 
 static QL_HTTP_ERR_CODE_E ql_http_set_url(ql_http_t handle, at_response_t resp, const char *url)
@@ -325,7 +349,9 @@ static QL_HTTP_ERR_CODE_E ql_http_post(ql_http_t handle, at_response_t resp, con
             at_client_obj_send(handle->client, data + sent, chunk_size, false);
             sent += chunk_size;
         }
-        LOG_I("send size %d", sent);
+#ifdef AT_PRINT_RAW_CMD
+        // LOG_I("send size %d", sent);
+#endif
     }
     free(buffer);
     return QL_HTTP_OK;
@@ -385,7 +411,8 @@ static QL_HTTP_ERR_CODE_E ql_http_put_file(ql_http_t handle, at_response_t resp,
         return QL_HTTP_ERR_PUT_FILE;
     return QL_HTTP_OK;
 }
-static QL_HTTP_ERR_CODE_E ql_http_read(ql_http_t handle)
+
+QL_HTTP_ERR_CODE_E ql_http_read(ql_http_t handle)
 {
     at_response_t query_resp = NULL;
    if (NULL == handle)

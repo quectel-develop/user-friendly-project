@@ -30,14 +30,15 @@ int example_udp_client_test(short sin_port, char *sin_addr, int loop_count, int 
     sprintf(buf, "%d", fd);
     for (int i=0; i<loop_count; i++)
     {
-        ret = sendto(fd,buf,strlen(buf),0,(struct sockaddr *)&ser_sockaddr,sizeof(ser_sockaddr));
+        ret = sendto(fd, buf, strlen(buf), 0, (struct sockaddr *)&ser_sockaddr, sizeof(ser_sockaddr));
         if (ret > 0)
             LOG_I("Udp client send %s ok, ret = %d, fd = %d (to:%s, %d)", buf, ret, fd, inet_ntoa(ser_sockaddr.sin_addr.s_addr), ntohs(ser_sockaddr.sin_port));
         else
             LOG_E("Udp client send %s err %d, %d", buf, ret, fd);
 
-        memset(buf,0,64);
-        ret = recvfrom(fd,buf,64,0,(struct sockaddr *)&ser_sockaddr,sizeof(ser_sockaddr));
+        memset(buf, 0, 64);
+        socklen_t addrlen = sizeof(ser_sockaddr);
+        ret = recvfrom(fd, buf, 64, 0, (struct sockaddr *)&ser_sockaddr, &addrlen);
         if (0 < ret)
             LOG_I("Udp client recv %s ok, ret = %d, fd = %d (from:%s, %d)", buf, ret, fd, inet_ntoa(ser_sockaddr.sin_addr.s_addr), ntohs(ser_sockaddr.sin_port));
         else

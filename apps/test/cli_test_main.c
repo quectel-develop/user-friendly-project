@@ -77,7 +77,15 @@ void cli_test_main(void)
 	#endif
 
     /* 7. AT UART init */
-    ret += ql_at_uart_init(at_client_get_first());
+    ql_uart_config_t uart_config = {
+        .client = at_client_get_first(),
+        .rx_buffer_size = 1024,
+        .tx_buffer_size = 1024,
+        .echo_mode = false,
+        .flow_control = true,
+        .baudrate = QL_UART_BAUD_115200,
+    };
+    ret += ql_at_uart_init(&uart_config);
 
     /* 8. Network init */
     ret += cli_net_test_init();

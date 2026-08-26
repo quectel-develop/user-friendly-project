@@ -12,7 +12,7 @@
 
 void user_main(void* argv)
 {
-    LOG_D("Welcome to Quectel User Friendly Project !");
+    LOG_D("Welcome to Quectel UniKnect Project !");
     LOG_D("Current version: %s @%s", QUECTEL_PROJECT_VERSION, QUECTEL_BUILD_ENV);
 
 /* Cli test mode */
@@ -28,7 +28,15 @@ void user_main(void* argv)
     ql_sd_init();
 
     /* 3. AT UART init */
-    ql_at_uart_init(at_client_get_first());
+    ql_uart_config_t uart_config = {
+        .client = at_client_get_first(),
+        .rx_buffer_size = 1024 * 20,
+        .tx_buffer_size = 1024,
+        .echo_mode = false,
+        .flow_control = true,
+        .baudrate = QL_UART_BAUD_115200,
+    };
+    ql_at_uart_init(&uart_config);
 
     LOG_I("########## example start ##########");
 
