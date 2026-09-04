@@ -12,6 +12,8 @@ set cmd_python=%compile_tools_dir%\python\python.exe
 set script_dir=%CURDIR%tools\scripts
 set script_cmake_autogen=%script_dir%\cmake-autogen.py
 set script_json_autogen=%script_dir%\json-autogen.py
+set script_merge_fw=%script_dir%\merge-firmware.py
+set script_mem_tool=%script_dir%\mem-tool.py
 
 set script_cmake_autogen_boot=%script_dir%\cmake-autogen-boot.py
 set script_json_autogen_boot=%script_dir%\json-autogen-boot.py
@@ -238,11 +240,16 @@ if EXIST %Project_Info_File% (
     @call :parse_json version
 )
 set app_elf_path=%CURDIR%%build_dir%\%version%.elf
+set app_map_path=%CURDIR%%build_dir%\%version%.map
+set app_map_json=%CURDIR%%build_dir%\_Merge\memory-report.json
 set boot_elf_path=%bootloader_dir%\build\%version%_Bootloader.elf
 set merge_bin_path=%build_dir%\_Merge\%version%_Merge.bin
 if NOT exist %build_dir%\_Merge md %build_dir%\_Merge
+
 @REM Merge bootloader and app
-%cmd_python% %script_dir%\merge-firmware.py -b %boot_elf_path% -a %app_elf_path% -o %merge_bin_path%
+%cmd_python% %script_merge_fw% -b %boot_elf_path% -a %app_elf_path% -o %merge_bin_path%
+@REM Generate memory report
+%cmd_python% %script_mem_tool% %app_map_path% %app_map_json%
 goto:eof
 
 

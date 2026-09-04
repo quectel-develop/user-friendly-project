@@ -16,6 +16,8 @@ cmd_cmake="$compile_tools_dir/cmake/bin/cmake"
 script_dir="$CURDIR/tools/scripts"
 script_cmake_autogen="$script_dir/cmake-autogen.py"
 script_json_autogen="$script_dir/json-autogen.py"
+script_merge_fw="$script_dir/merge-firmware.py"
+script_mem_tool="$script_dir/mem-tool.py"
 
 script_cmake_autogen_boot="$script_dir/cmake-autogen-boot.py"
 script_json_autogen_boot="$script_dir/json-autogen-boot.py"
@@ -208,6 +210,8 @@ cmd_merge() {
     fi
 
     app_elf_path="${CURDIR}/${build_dir}/${version}.elf"
+    app_map_path="${CURDIR}/${build_dir}/${version}.map"
+    app_map_json="${CURDIR}/${build_dir}/_Merge/memory-report.json"
     boot_elf_path="${bootloader_dir}/build/${version}_Bootloader.elf"
     merge_bin_path="${build_dir}/_Merge/${version}_Merge.bin"
 
@@ -216,7 +220,9 @@ cmd_merge() {
     fi
 
     # Merge bootloader and app
-    python3 "${script_dir}/merge-firmware.py" -b "$boot_elf_path" -a "$app_elf_path" -o "$merge_bin_path"
+    python3 "${script_merge_fw}" -b "$boot_elf_path" -a "$app_elf_path" -o "$merge_bin_path"
+    # Generate memory report
+    python3 "${script_mem_tool}" "$app_map_path" "$app_map_json"
 }
 
 cmd_all() {
